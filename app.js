@@ -1,6 +1,7 @@
 (function (root) {
   const STORAGE_KEY = 'obs-overlay-maker-state-v1';
   const WIDTH = 1920, HEIGHT = 1080, PANEL_W = 320, PANEL_H = 120;
+  const PANEL_DEFAULTS = { width: PANEL_W, height: PANEL_H, borderColor: '#65e6ff', backgroundColor: '#142a42', borderOpacity: 100, backgroundOpacity: 90, borderStyle: 'solid', cornerTopLeft: true, cornerTopRight: true, cornerBottomLeft: true, cornerBottomRight: true };
   const initialState = () => ({ panels: [], gameImage: null, gameImageName: '', gameImageOpacity: 35 });
   const cloneState = (state) => JSON.parse(JSON.stringify(state));
 
@@ -11,8 +12,19 @@
       .filter((panel) => panel && Number.isFinite(panel.x) && Number.isFinite(panel.y))
       .map((panel, index) => ({
         id: typeof panel.id === 'string' ? panel.id : `panel-${index + 1}`,
-        x: Math.max(0, Math.min(WIDTH - PANEL_W, panel.x)),
-        y: Math.max(0, Math.min(HEIGHT - PANEL_H, panel.y))
+        width: Math.max(80, Math.min(WIDTH, Number(panel.width) || PANEL_W)),
+        height: Math.max(50, Math.min(HEIGHT, Number(panel.height) || PANEL_H)),
+        x: Math.max(0, Math.min(WIDTH - Math.max(80, Math.min(WIDTH, Number(panel.width) || PANEL_W)), panel.x)),
+        y: Math.max(0, Math.min(HEIGHT - Math.max(50, Math.min(HEIGHT, Number(panel.height) || PANEL_H)), panel.y)),
+        borderColor: /^#[0-9a-f]{6}$/i.test(panel.borderColor) ? panel.borderColor.toLowerCase() : PANEL_DEFAULTS.borderColor,
+        backgroundColor: /^#[0-9a-f]{6}$/i.test(panel.backgroundColor) ? panel.backgroundColor.toLowerCase() : PANEL_DEFAULTS.backgroundColor,
+        borderOpacity: Math.max(0, Math.min(100, Number.isFinite(Number(panel.borderOpacity)) ? Number(panel.borderOpacity) : (Number.isFinite(Number(panel.opacity)) ? Number(panel.opacity) : PANEL_DEFAULTS.borderOpacity))),
+        backgroundOpacity: Math.max(0, Math.min(100, Number.isFinite(Number(panel.backgroundOpacity)) ? Number(panel.backgroundOpacity) : (Number.isFinite(Number(panel.opacity)) ? Number(panel.opacity) : PANEL_DEFAULTS.backgroundOpacity))),
+        borderStyle: ['solid', 'dotted', 'double', 'dashed'].includes(panel.borderStyle) ? panel.borderStyle : PANEL_DEFAULTS.borderStyle,
+        cornerTopLeft: typeof panel.cornerTopLeft === 'boolean' ? panel.cornerTopLeft : (typeof panel.diagonalCorners === 'boolean' ? panel.diagonalCorners : true),
+        cornerTopRight: typeof panel.cornerTopRight === 'boolean' ? panel.cornerTopRight : (typeof panel.diagonalCorners === 'boolean' ? panel.diagonalCorners : true),
+        cornerBottomLeft: typeof panel.cornerBottomLeft === 'boolean' ? panel.cornerBottomLeft : (typeof panel.diagonalCorners === 'boolean' ? panel.diagonalCorners : true),
+        cornerBottomRight: typeof panel.cornerBottomRight === 'boolean' ? panel.cornerBottomRight : (typeof panel.diagonalCorners === 'boolean' ? panel.diagonalCorners : true)
       }));
     state.gameImage = typeof value.gameImage === 'string' ? value.gameImage : null;
     state.gameImageName = typeof value.gameImageName === 'string' ? value.gameImageName : '';
@@ -23,10 +35,15 @@
   const escapeHtml = (value) => String(value).replace(/[&<>"']/g, (character) => ({
     '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'
   })[character]);
+  const rgba = (hex, opacity) => `${hex}${Math.round(opacity * 2.55).toString(16).padStart(2, '0')}`;
+  function panelClipPath(panel) {
+    const tl = panel.cornerTopLeft, tr = panel.cornerTopRight, bl = panel.cornerBottomLeft, br = panel.cornerBottomRight;
+    return `polygon(${tl ? '18px 0,0 18px' : '0 0'},${bl ? '0 calc(100% - 18px),18px 100%' : '0 100%'},${br ? 'calc(100% - 18px) 100%,100% calc(100% - 18px)' : '100% 100%'},${tr ? '100% 18px,calc(100% - 18px) 0' : '100% 0'})`;
+  }
 
   function buildObsHtml(state) {
     const panels = normalizeState(state).panels.map((panel) =>
-      `    <div class="overlay-panel" data-panel-id="${escapeHtml(panel.id)}" style="left:${panel.x}px;top:${panel.y}px"></div>`
+      `    <div class="overlay-panel" data-panel-id="${escapeHtml(panel.id)}" style="left:${panel.x}px;top:${panel.y}px;width:${panel.width}px;height:${panel.height}px;border-color:${rgba(panel.borderColor, panel.borderOpacity)};border-style:${panel.borderStyle};border-width:${panel.borderStyle === 'double' ? 4 : 2}px;background-color:${rgba(panel.backgroundColor, panel.backgroundOpacity)};clip-path:${panelClipPath(panel)}"></div>`
     ).join('\n');
     return `<!doctype html>
 <html lang="ja">
@@ -37,7 +54,7 @@
   <style>
     html,body{margin:0;width:1920px;height:1080px;overflow:hidden;background:transparent}
     .overlay{position:relative;width:1920px;height:1080px}
-    .overlay-panel{position:absolute;width:320px;height:120px;border:2px solid #65e6ff;box-sizing:border-box;background:rgba(20,42,66,.9);clip-path:polygon(18px 0,100% 0,100% calc(100% - 18px),calc(100% - 18px) 100%,0 100%,0 18px);box-shadow:0 0 20px rgba(101,230,255,.12)}
+    .overlay-panel{position:absolute;width:320px;height:120px;border-width:2px;border-style:solid;box-sizing:border-box}
   </style>
 </head>
 <body>
@@ -59,7 +76,15 @@ ${panels}
   const gameImageName = byId('gameImageName'), gameImageOpacity = byId('gameImageOpacity');
   const gameImageOpacityValue = byId('gameImageOpacityValue'), removeGameImageBtn = byId('removeGameImageBtn');
   const gameImageMessage = byId('gameImageMessage');
-  let state = initialState(), past = [], future = [];
+  const panelSelectionMessage = byId('panelSelectionMessage'), panelBorderColor = byId('panelBorderColor');
+  const panelBackgroundColor = byId('panelBackgroundColor'), panelBorderOpacity = byId('panelBorderOpacity');
+  const panelBorderOpacityValue = byId('panelBorderOpacityValue'), panelBackgroundOpacity = byId('panelBackgroundOpacity');
+  const panelBackgroundOpacityValue = byId('panelBackgroundOpacityValue'), panelBorderStyle = byId('panelBorderStyle');
+  const panelCornerTopLeft = byId('panelCornerTopLeft'), panelCornerTopRight = byId('panelCornerTopRight');
+  const panelCornerBottomLeft = byId('panelCornerBottomLeft'), panelCornerBottomRight = byId('panelCornerBottomRight');
+  const panelWidth = byId('panelWidth'), panelHeight = byId('panelHeight');
+  const panelInputs = [panelBorderColor, panelBackgroundColor, panelBorderOpacity, panelBackgroundOpacity, panelBorderStyle, panelCornerTopLeft, panelCornerTopRight, panelCornerBottomLeft, panelCornerBottomRight, panelWidth, panelHeight];
+  let state = initialState(), past = [], future = [], selectedPanelId = null;
 
   const updateHistoryButtons = () => { undoBtn.disabled = !past.length; redoBtn.disabled = !future.length; };
   function commit(nextState) { past.push(cloneState(state)); state = normalizeState(nextState); future = []; render(); }
@@ -70,6 +95,11 @@ ${panels}
       const panel = document.createElement('div');
       panel.className = 'overlay-panel'; panel.dataset.panelId = data.id;
       panel.style.left = `${data.x * scale}px`; panel.style.top = `${data.y * scale}px`;
+      panel.style.width = `${data.width * scale}px`; panel.style.height = `${data.height * scale}px`;
+      panel.style.borderColor = rgba(data.borderColor, data.borderOpacity); panel.style.borderStyle = data.borderStyle;
+      panel.style.borderWidth = `${data.borderStyle === 'double' ? 4 : 2}px`;
+      panel.style.backgroundColor = rgba(data.backgroundColor, data.backgroundOpacity);
+      panel.style.clipPath = panelClipPath(data);
       enableDragging(panel); canvas.appendChild(panel);
     });
     if (state.gameImage) gameReferenceImage.src = state.gameImage; else gameReferenceImage.removeAttribute('src');
@@ -78,14 +108,48 @@ ${panels}
     gameImageName.textContent = state.gameImageName || '画像は選択されていません';
     gameImageOpacity.value = String(state.gameImageOpacity);
     gameImageOpacityValue.value = `${state.gameImageOpacity}%`; gameImageOpacityValue.textContent = `${state.gameImageOpacity}%`;
-    removeGameImageBtn.disabled = !state.gameImage; updateHistoryButtons();
+    removeGameImageBtn.disabled = !state.gameImage; updatePanelControls(); updateHistoryButtons();
+  }
+
+  function updatePanelControls() {
+    const panel = state.panels.find((item) => item.id === selectedPanelId);
+    panelInputs.forEach((input) => { input.disabled = !panel; });
+    panelSelectionMessage.textContent = panel ? `${panel.id} を編集中` : '編集するパネルを選択してください';
+    if (!panel) return;
+    panelBorderColor.value = panel.borderColor; panelBackgroundColor.value = panel.backgroundColor;
+    panelBorderOpacity.value = String(panel.borderOpacity); panelBorderOpacityValue.value = `${panel.borderOpacity}%`; panelBorderOpacityValue.textContent = `${panel.borderOpacity}%`;
+    panelBackgroundOpacity.value = String(panel.backgroundOpacity); panelBackgroundOpacityValue.value = `${panel.backgroundOpacity}%`; panelBackgroundOpacityValue.textContent = `${panel.backgroundOpacity}%`;
+    panelBorderStyle.value = panel.borderStyle;
+    panelCornerTopLeft.checked = panel.cornerTopLeft; panelCornerTopRight.checked = panel.cornerTopRight;
+    panelCornerBottomLeft.checked = panel.cornerBottomLeft; panelCornerBottomRight.checked = panel.cornerBottomRight;
+    panelWidth.value = String(panel.width); panelHeight.value = String(panel.height);
+  }
+
+  function editSelectedPanel(changes) {
+    const panel = state.panels.find((item) => item.id === selectedPanelId); if (!panel) return;
+    const next = cloneState(state), target = next.panels.find((item) => item.id === selectedPanelId);
+    Object.assign(target, changes); commit(next);
   }
 
   addPanelBtn.addEventListener('click', () => {
     const next = cloneState(state);
     const number = next.panels.reduce((max, panel) => Math.max(max, Number(panel.id.replace('panel-', '')) || 0), 0) + 1;
-    next.panels.push({ id: `panel-${number}`, x: 40 + number * 16, y: 40 + number * 16 }); commit(next);
+    const id = `panel-${number}`;
+    next.panels.push({ id, x: 40 + number * 16, y: 40 + number * 16, ...PANEL_DEFAULTS }); selectedPanelId = id; commit(next);
   });
+  panelBorderColor.addEventListener('input', () => editSelectedPanel({ borderColor: panelBorderColor.value }));
+  panelBackgroundColor.addEventListener('input', () => editSelectedPanel({ backgroundColor: panelBackgroundColor.value }));
+  panelBorderOpacity.addEventListener('input', () => { panelBorderOpacityValue.value = `${panelBorderOpacity.value}%`; panelBorderOpacityValue.textContent = `${panelBorderOpacity.value}%`; });
+  panelBorderOpacity.addEventListener('change', () => editSelectedPanel({ borderOpacity: Number(panelBorderOpacity.value) }));
+  panelBackgroundOpacity.addEventListener('input', () => { panelBackgroundOpacityValue.value = `${panelBackgroundOpacity.value}%`; panelBackgroundOpacityValue.textContent = `${panelBackgroundOpacity.value}%`; });
+  panelBackgroundOpacity.addEventListener('change', () => editSelectedPanel({ backgroundOpacity: Number(panelBackgroundOpacity.value) }));
+  panelBorderStyle.addEventListener('change', () => editSelectedPanel({ borderStyle: panelBorderStyle.value }));
+  panelCornerTopLeft.addEventListener('change', () => editSelectedPanel({ cornerTopLeft: panelCornerTopLeft.checked }));
+  panelCornerTopRight.addEventListener('change', () => editSelectedPanel({ cornerTopRight: panelCornerTopRight.checked }));
+  panelCornerBottomLeft.addEventListener('change', () => editSelectedPanel({ cornerBottomLeft: panelCornerBottomLeft.checked }));
+  panelCornerBottomRight.addEventListener('change', () => editSelectedPanel({ cornerBottomRight: panelCornerBottomRight.checked }));
+  panelWidth.addEventListener('change', () => editSelectedPanel({ width: Number(panelWidth.value) }));
+  panelHeight.addEventListener('change', () => editSelectedPanel({ height: Number(panelHeight.value) }));
   undoBtn.addEventListener('click', () => { if (past.length) { future.push(cloneState(state)); state = past.pop(); render(); } });
   redoBtn.addEventListener('click', () => { if (future.length) { past.push(cloneState(state)); state = future.pop(); render(); } });
 
@@ -126,14 +190,16 @@ ${panels}
     let start = null;
     element.addEventListener('pointerdown', (event) => {
       const panel = state.panels.find((item) => item.id === element.dataset.panelId);
+      selectedPanelId = panel.id;
+      updatePanelControls();
       start = { pointerX: event.clientX, pointerY: event.clientY, x: panel.x, y: panel.y, before: cloneState(state) };
       element.setPointerCapture(event.pointerId);
     });
     element.addEventListener('pointermove', (event) => {
       if (!start) return; const scale = canvas.clientWidth / WIDTH || 1;
       const panel = state.panels.find((item) => item.id === element.dataset.panelId);
-      panel.x = Math.max(0, Math.min(WIDTH - PANEL_W, start.x + (event.clientX - start.pointerX) / scale));
-      panel.y = Math.max(0, Math.min(HEIGHT - PANEL_H, start.y + (event.clientY - start.pointerY) / scale));
+      panel.x = Math.max(0, Math.min(WIDTH - panel.width, start.x + (event.clientX - start.pointerX) / scale));
+      panel.y = Math.max(0, Math.min(HEIGHT - panel.height, start.y + (event.clientY - start.pointerY) / scale));
       element.style.left = `${panel.x * scale}px`; element.style.top = `${panel.y * scale}px`;
     });
     const stop = (event) => {

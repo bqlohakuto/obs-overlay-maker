@@ -21,6 +21,46 @@
         <button type="button" disabled>＋ 時計追加</button>
       </div>
 
+      <section class="panel-controls" aria-labelledby="panelControlsTitle">
+        <div>
+          <p class="eyebrow">PANEL</p>
+          <h2 id="panelControlsTitle">パネル編集</h2>
+        </div>
+        <p id="panelSelectionMessage" class="image-name">編集するパネルを選択してください</p>
+        <div class="color-row">
+          <label for="panelBorderColor">枠色<input id="panelBorderColor" type="color" value="#65e6ff" disabled></label>
+          <label for="panelBackgroundColor">背景色<input id="panelBackgroundColor" type="color" value="#142a42" disabled></label>
+        </div>
+        <label class="opacity-control" for="panelBorderOpacity">
+          <span>枠の透明度</span>
+          <output id="panelBorderOpacityValue" for="panelBorderOpacity">100%</output>
+        </label>
+        <input id="panelBorderOpacity" type="range" min="0" max="100" value="100" disabled>
+        <label class="opacity-control" for="panelBackgroundOpacity">
+          <span>背景の透明度</span>
+          <output id="panelBackgroundOpacityValue" for="panelBackgroundOpacity">90%</output>
+        </label>
+        <input id="panelBackgroundOpacity" type="range" min="0" max="100" value="90" disabled>
+        <label for="panelBorderStyle">枠の形</label>
+        <select id="panelBorderStyle" disabled>
+          <option value="solid">実線</option>
+          <option value="dotted">点線</option>
+          <option value="double">二重線</option>
+          <option value="dashed">破線</option>
+        </select>
+        <fieldset class="corner-controls">
+          <legend>斜めにする箇所</legend>
+          <label><input id="panelCornerTopLeft" type="checkbox" checked disabled>左上</label>
+          <label><input id="panelCornerTopRight" type="checkbox" checked disabled>右上</label>
+          <label><input id="panelCornerBottomLeft" type="checkbox" checked disabled>左下</label>
+          <label><input id="panelCornerBottomRight" type="checkbox" checked disabled>右下</label>
+        </fieldset>
+        <div class="size-row">
+          <label for="panelWidth">幅<input id="panelWidth" type="number" min="80" max="1920" step="10" disabled></label>
+          <label for="panelHeight">高さ<input id="panelHeight" type="number" min="50" max="1080" step="10" disabled></label>
+        </div>
+      </section>
+
       <section class="history-controls" aria-label="編集操作">
         <div class="button-row">
           <button id="undoBtn" class="secondary-button" type="button" disabled>元に戻す</button>
