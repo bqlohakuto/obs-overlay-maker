@@ -53,6 +53,16 @@ test('選択したパネルだけを削除し他の要素を保持する', () =>
   assert.deepEqual(next.panels, [{ id: 'panel-2' }]); assert.deepEqual(next.texts, state.texts);
   assert.equal(state.panels.length, 2);
 });
+test('図形の種類と編集値を正規化してOBS用HTMLへ反映する', () => {
+  const shape = { id: 'shape-1', x: 20, y: 30, width: 240, height: 180, type: 'heart', color: '#FF0000', opacity: 50, rotation: 15 };
+  const state = normalizeState({ shapes: [shape] }); assert.equal(state.shapes[0].type, 'heart'); assert.equal(state.shapes[0].color, '#ff0000');
+  const html = buildObsHtml({ shapes: [shape] }); assert.match(html, /data-shape-id="shape-1"/); assert.match(html, /width:240px;height:180px/);
+  assert.match(html, /background:#ff000080/); assert.match(html, /transform:rotate\(15deg\)/); assert.match(html, /clip-path:polygon\(50% 92%/);
+});
+test('未対応の図形と範囲外のサイズを安全な値へ戻す', () => {
+  const shape = normalizeState({ shapes: [{ id: 'x', x: 9999, y: 9999, width: 9999, height: -1, type: 'unknown', opacity: 999 }] }).shapes[0];
+  assert.equal(shape.type, 'star'); assert.equal(shape.width, 1920); assert.equal(shape.height, 20); assert.equal(shape.x, 0); assert.equal(shape.opacity, 100);
+});
 test('OBS用HTMLは属性値をエスケープする', () => {
   const html = buildObsHtml({ panels: [{ id: '\"><script>', x: 0, y: 0 }] });
   assert.doesNotMatch(html, /<script>/); assert.match(html, /&quot;&gt;&lt;script&gt;/);

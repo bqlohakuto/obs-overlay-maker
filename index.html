@@ -18,6 +18,7 @@
       <div class="tool-group">
         <button id="addPanelBtn" type="button">＋ パネル追加</button>
         <button id="addTextBtn" type="button">＋ 文字追加</button>
+        <button id="addShapeBtn" type="button">＋ 図形追加</button>
         <button type="button" disabled>＋ 時計追加</button>
       </div>
 
@@ -95,6 +96,24 @@
             <select id="textAlign" disabled><option value="left">左</option><option value="center">中央</option><option value="right">右</option></select>
           </label>
         </div>
+      </section>
+
+      <section class="shape-controls" aria-labelledby="shapeControlsTitle">
+        <div><p class="eyebrow">SHAPE</p><h2 id="shapeControlsTitle">図形編集</h2></div>
+        <p id="shapeSelectionMessage" class="image-name">編集する図形を選択してください</p>
+        <label for="shapeType">図形</label>
+        <select id="shapeType" disabled><option value="star">星</option><option value="heart">ハート</option><option value="diamond">ひし形</option><option value="circle">円</option><option value="triangle">三角形</option></select>
+        <div class="size-row">
+          <label for="shapeColor">色<input id="shapeColor" type="color" value="#ff5d8f" disabled></label>
+          <label for="shapeRotation">回転<input id="shapeRotation" type="number" min="-360" max="360" step="1" disabled></label>
+        </div>
+        <label class="opacity-control" for="shapeOpacity"><span>透明度</span><output id="shapeOpacityValue" for="shapeOpacity">100%</output></label>
+        <input id="shapeOpacity" type="range" min="0" max="100" value="100" disabled>
+        <div class="size-row">
+          <label for="shapeWidth">幅<input id="shapeWidth" type="number" min="20" max="1920" step="10" disabled></label>
+          <label for="shapeHeight">高さ<input id="shapeHeight" type="number" min="20" max="1080" step="10" disabled></label>
+        </div>
+        <button id="deleteShapeBtn" class="danger-button" type="button" disabled>選択中の図形を削除</button>
       </section>
 
       <section class="history-controls" aria-label="編集操作">

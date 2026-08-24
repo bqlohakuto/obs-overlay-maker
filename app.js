@@ -3,7 +3,8 @@
   const WIDTH = 1920, HEIGHT = 1080, PANEL_W = 320, PANEL_H = 120;
   const PANEL_DEFAULTS = { width: PANEL_W, height: PANEL_H, borderColor: '#65e6ff', backgroundColor: '#142a42', borderOpacity: 100, backgroundOpacity: 90, borderStyle: 'solid', cornerTopLeft: true, cornerTopRight: true, cornerBottomLeft: true, cornerBottomRight: true };
   const TEXT_FONTS = ['system-ui', "'Yu Gothic', 'YuGothic', sans-serif", 'Meiryo, sans-serif', 'Arial, sans-serif', 'Georgia, serif', 'Impact, sans-serif', 'monospace'];
-  const initialState = () => ({ panels: [], texts: [], gameImage: null, gameImageName: '', gameImageOpacity: 35 });
+  const SHAPE_TYPES = ['star', 'heart', 'diamond', 'circle', 'triangle'];
+  const initialState = () => ({ panels: [], texts: [], shapes: [], gameImage: null, gameImageName: '', gameImageOpacity: 35 });
   const cloneState = (state) => JSON.parse(JSON.stringify(state));
   function removePanel(state, panelId) {
     const next = cloneState(state); next.panels = next.panels.filter((panel) => panel.id !== panelId); return next;
@@ -42,6 +43,12 @@
         opacity: Math.max(0, Math.min(100, Number.isFinite(Number(text.opacity)) ? Number(text.opacity) : 100)),
         bold: Boolean(text.bold), align: ['left', 'center', 'right'].includes(text.align) ? text.align : 'left'
       }));
+    if (Array.isArray(value.shapes)) state.shapes = value.shapes.filter((shape) => shape && Number.isFinite(shape.x) && Number.isFinite(shape.y)).map((shape, index) => {
+      const width = Math.max(20, Math.min(WIDTH, Number(shape.width) || 160)), height = Math.max(20, Math.min(HEIGHT, Number(shape.height) || 160));
+      return { id: typeof shape.id === 'string' ? shape.id : `shape-${index + 1}`, x: Math.max(0, Math.min(WIDTH - width, shape.x)), y: Math.max(0, Math.min(HEIGHT - height, shape.y)), width, height,
+        type: SHAPE_TYPES.includes(shape.type) ? shape.type : 'star', color: /^#[0-9a-f]{6}$/i.test(shape.color) ? shape.color.toLowerCase() : '#ff5d8f',
+        opacity: Math.max(0, Math.min(100, Number.isFinite(Number(shape.opacity)) ? Number(shape.opacity) : 100)), rotation: Math.max(-360, Math.min(360, Number(shape.rotation) || 0)) };
+    });
     state.gameImage = typeof value.gameImage === 'string' ? value.gameImage : null;
     state.gameImageName = typeof value.gameImageName === 'string' ? value.gameImageName : '';
     state.gameImageOpacity = Math.max(0, Math.min(100, Number(value.gameImageOpacity) || 0));
@@ -51,11 +58,12 @@
   const escapeHtml = (value) => String(value).replace(/[&<>"']/g, (character) => ({
     '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'
   })[character]);
-  const rgba = (hex, opacity) => `${hex}${Math.round(opacity * 2.55).toString(16).padStart(2, '0')}`;
+  const rgba = (hex, opacity) => `${hex}${Math.round((opacity / 100) * 255).toString(16).padStart(2, '0')}`;
   function panelClipPath(panel) {
     const tl = panel.cornerTopLeft, tr = panel.cornerTopRight, bl = panel.cornerBottomLeft, br = panel.cornerBottomRight;
     return `polygon(${tl ? '18px 0,0 18px' : '0 0'},${bl ? '0 calc(100% - 18px),18px 100%' : '0 100%'},${br ? 'calc(100% - 18px) 100%,100% calc(100% - 18px)' : '100% 100%'},${tr ? '100% 18px,calc(100% - 18px) 0' : '100% 0'})`;
   }
+  const shapeClipPath = (type) => ({ star: 'polygon(50% 0%,61% 35%,98% 35%,68% 57%,79% 100%,50% 74%,21% 100%,32% 57%,2% 35%,39% 35%)', heart: 'polygon(50% 92%,8% 52%,2% 30%,8% 12%,25% 3%,42% 8%,50% 22%,58% 8%,75% 3%,92% 12%,98% 30%,92% 52%)', diamond: 'polygon(50% 0%,100% 50%,50% 100%,0% 50%)', circle: 'circle(50% at 50% 50%)', triangle: 'polygon(50% 0%,100% 100%,0% 100%)' })[type];
 
   function buildObsHtml(state) {
     const normalized = normalizeState(state);
@@ -65,6 +73,7 @@
     const texts = normalized.texts.map((text) =>
       `    <div class="overlay-text" data-text-id="${escapeHtml(text.id)}" style="left:${text.x}px;top:${text.y}px;font-family:${escapeHtml(text.fontFamily)};font-size:${text.fontSize}px;color:${rgba(text.color, text.opacity)};font-weight:${text.bold ? 700 : 400};text-align:${text.align}">${escapeHtml(text.content)}</div>`
     ).join('\n');
+    const shapes = normalized.shapes.map((shape) => `    <div class="overlay-shape" data-shape-id="${escapeHtml(shape.id)}" style="left:${shape.x}px;top:${shape.y}px;width:${shape.width}px;height:${shape.height}px;background:${rgba(shape.color, shape.opacity)};clip-path:${shapeClipPath(shape.type)};transform:rotate(${shape.rotation}deg)"></div>`).join('\n');
     return `<!doctype html>
 <html lang="ja">
 <head>
@@ -76,12 +85,14 @@
     .overlay{position:relative;width:1920px;height:1080px}
     .overlay-panel{position:absolute;width:320px;height:120px;border-width:2px;border-style:solid;box-sizing:border-box}
     .overlay-text{position:absolute;min-width:80px;max-width:1920px;white-space:pre-wrap;overflow-wrap:anywhere;line-height:1.2}
+    .overlay-shape{position:absolute}
   </style>
 </head>
 <body>
   <div class="overlay">
 ${panels}
 ${texts}
+${shapes}
   </div>
 </body>
 </html>`;
@@ -91,7 +102,7 @@ ${texts}
   if (!root.document) return;
   const document = root.document;
   const byId = (id) => document.getElementById(id);
-  const canvas = byId('overlayCanvas'), addPanelBtn = byId('addPanelBtn'), addTextBtn = byId('addTextBtn');
+  const canvas = byId('overlayCanvas'), addPanelBtn = byId('addPanelBtn'), addTextBtn = byId('addTextBtn'), addShapeBtn = byId('addShapeBtn');
   const undoBtn = byId('undoBtn'), redoBtn = byId('redoBtn'), saveBtn = byId('saveBtn');
   const loadBtn = byId('loadBtn'), exportBtn = byId('exportBtn'), editorMessage = byId('editorMessage');
   const gameImageInput = byId('gameImageInput'), gameReferenceImage = byId('gameReferenceImage');
@@ -111,13 +122,17 @@ ${texts}
   const textFontFamily = byId('textFontFamily'), textFontSize = byId('textFontSize'), textColor = byId('textColor');
   const textOpacity = byId('textOpacity'), textOpacityValue = byId('textOpacityValue'), textBold = byId('textBold'), textAlign = byId('textAlign');
   const textInputs = [textContent, textFontFamily, textFontSize, textColor, textOpacity, textBold, textAlign];
-  let state = initialState(), past = [], future = [], selectedPanelId = null, selectedTextId = null;
+  const shapeSelectionMessage = byId('shapeSelectionMessage'), shapeType = byId('shapeType'), shapeColor = byId('shapeColor');
+  const shapeOpacity = byId('shapeOpacity'), shapeOpacityValue = byId('shapeOpacityValue'), shapeWidth = byId('shapeWidth'), shapeHeight = byId('shapeHeight');
+  const shapeRotation = byId('shapeRotation'), deleteShapeBtn = byId('deleteShapeBtn'), shapeInputs = [shapeType, shapeColor, shapeOpacity, shapeWidth, shapeHeight, shapeRotation];
+  let state = initialState(), past = [], future = [], selectedPanelId = null, selectedTextId = null, selectedShapeId = null;
 
   const updateHistoryButtons = () => { undoBtn.disabled = !past.length; redoBtn.disabled = !future.length; };
   function commit(nextState) { past.push(cloneState(state)); state = normalizeState(nextState); future = []; render(); }
   function render() {
     canvas.querySelectorAll('.overlay-panel').forEach((panel) => panel.remove());
     canvas.querySelectorAll('.overlay-text').forEach((text) => text.remove());
+    canvas.querySelectorAll('.overlay-shape').forEach((shape) => shape.remove());
     const scale = canvas.clientWidth / WIDTH;
     state.panels.forEach((data) => {
       const panel = document.createElement('div');
@@ -137,13 +152,19 @@ ${texts}
       text.style.color = rgba(data.color, data.opacity); text.style.fontWeight = data.bold ? '700' : '400'; text.style.textAlign = data.align;
       enableTextDragging(text); canvas.appendChild(text);
     });
+    state.shapes.forEach((data) => {
+      const shape = document.createElement('div'); shape.className = 'overlay-shape'; shape.dataset.shapeId = data.id;
+      shape.style.left = `${data.x * scale}px`; shape.style.top = `${data.y * scale}px`; shape.style.width = `${data.width * scale}px`; shape.style.height = `${data.height * scale}px`;
+      shape.style.background = rgba(data.color, data.opacity); shape.style.clipPath = shapeClipPath(data.type); shape.style.transform = `rotate(${data.rotation}deg)`;
+      enableShapeDragging(shape); canvas.appendChild(shape);
+    });
     if (state.gameImage) gameReferenceImage.src = state.gameImage; else gameReferenceImage.removeAttribute('src');
     gameReferenceImage.hidden = !state.gameImage;
     gameReferenceImage.style.opacity = String(state.gameImageOpacity / 100);
     gameImageName.textContent = state.gameImageName || '画像は選択されていません';
     gameImageOpacity.value = String(state.gameImageOpacity);
     gameImageOpacityValue.value = `${state.gameImageOpacity}%`; gameImageOpacityValue.textContent = `${state.gameImageOpacity}%`;
-    removeGameImageBtn.disabled = !state.gameImage; updatePanelControls(); updateTextControls(); updateHistoryButtons();
+    removeGameImageBtn.disabled = !state.gameImage; updatePanelControls(); updateTextControls(); updateShapeControls(); updateHistoryButtons();
   }
 
   function updatePanelControls() {
@@ -178,6 +199,13 @@ ${texts}
     const text = state.texts.find((item) => item.id === selectedTextId); if (!text) return;
     const next = cloneState(state), target = next.texts.find((item) => item.id === selectedTextId); Object.assign(target, changes); commit(next);
   }
+  function updateShapeControls() {
+    const shape = state.shapes.find((item) => item.id === selectedShapeId); shapeInputs.forEach((input) => { input.disabled = !shape; }); deleteShapeBtn.disabled = !shape;
+    shapeSelectionMessage.textContent = shape ? `${shape.id} を編集中` : '編集する図形を選択してください'; if (!shape) return;
+    shapeType.value = shape.type; shapeColor.value = shape.color; shapeOpacity.value = String(shape.opacity); shapeOpacityValue.value = `${shape.opacity}%`; shapeOpacityValue.textContent = `${shape.opacity}%`;
+    shapeWidth.value = String(shape.width); shapeHeight.value = String(shape.height); shapeRotation.value = String(shape.rotation);
+  }
+  function editSelectedShape(changes) { if (!selectedShapeId) return; const next = cloneState(state), target = next.shapes.find((item) => item.id === selectedShapeId); if (!target) return; Object.assign(target, changes); commit(next); }
 
   addPanelBtn.addEventListener('click', () => {
     const next = cloneState(state);
@@ -189,6 +217,10 @@ ${texts}
     const next = cloneState(state), number = next.texts.reduce((max, text) => Math.max(max, Number(text.id.replace('text-', '')) || 0), 0) + 1;
     const id = `text-${number}`; next.texts.push({ id, x: 80 + number * 16, y: 80 + number * 16, content: '新しい文字', fontFamily: 'system-ui', fontSize: 48, color: '#ffffff', opacity: 100, bold: false, align: 'left' });
     selectedTextId = id; commit(next);
+  });
+  addShapeBtn.addEventListener('click', () => {
+    const next = cloneState(state), number = next.shapes.reduce((max, shape) => Math.max(max, Number(shape.id.replace('shape-', '')) || 0), 0) + 1, id = `shape-${number}`;
+    next.shapes.push({ id, x: 120 + number * 16, y: 120 + number * 16, width: 160, height: 160, type: 'star', color: '#ff5d8f', opacity: 100, rotation: 0 }); selectedShapeId = id; commit(next);
   });
   panelBorderColor.addEventListener('input', () => editSelectedPanel({ borderColor: panelBorderColor.value }));
   panelBackgroundColor.addEventListener('input', () => editSelectedPanel({ backgroundColor: panelBackgroundColor.value }));
@@ -215,6 +247,13 @@ ${texts}
   textOpacity.addEventListener('change', () => editSelectedText({ opacity: Number(textOpacity.value) }));
   textBold.addEventListener('change', () => editSelectedText({ bold: textBold.checked }));
   textAlign.addEventListener('change', () => editSelectedText({ align: textAlign.value }));
+  shapeType.addEventListener('change', () => editSelectedShape({ type: shapeType.value }));
+  shapeColor.addEventListener('input', () => editSelectedShape({ color: shapeColor.value }));
+  shapeOpacity.addEventListener('input', () => { shapeOpacityValue.value = `${shapeOpacity.value}%`; shapeOpacityValue.textContent = `${shapeOpacity.value}%`; });
+  shapeOpacity.addEventListener('change', () => editSelectedShape({ opacity: Number(shapeOpacity.value) }));
+  shapeWidth.addEventListener('change', () => editSelectedShape({ width: Number(shapeWidth.value) })); shapeHeight.addEventListener('change', () => editSelectedShape({ height: Number(shapeHeight.value) }));
+  shapeRotation.addEventListener('change', () => editSelectedShape({ rotation: Number(shapeRotation.value) }));
+  deleteShapeBtn.addEventListener('click', () => { if (!selectedShapeId) return; const next = cloneState(state); next.shapes = next.shapes.filter((shape) => shape.id !== selectedShapeId); selectedShapeId = null; commit(next); editorMessage.textContent = '図形を削除しました。'; });
   undoBtn.addEventListener('click', () => { if (past.length) { future.push(cloneState(state)); state = past.pop(); render(); } });
   redoBtn.addEventListener('click', () => { if (future.length) { past.push(cloneState(state)); state = future.pop(); render(); } });
 
@@ -289,6 +328,23 @@ ${texts}
     });
     const stop = (event) => {
       if (!start) return; if (JSON.stringify(start.before.texts) !== JSON.stringify(state.texts)) { past.push(start.before); future = []; updateHistoryButtons(); }
+      start = null; if (element.hasPointerCapture(event.pointerId)) element.releasePointerCapture(event.pointerId);
+    };
+    element.addEventListener('pointerup', stop); element.addEventListener('pointercancel', stop);
+  }
+  function enableShapeDragging(element) {
+    let start = null;
+    element.addEventListener('pointerdown', (event) => {
+      const shape = state.shapes.find((item) => item.id === element.dataset.shapeId); selectedShapeId = shape.id; updateShapeControls();
+      start = { pointerX: event.clientX, pointerY: event.clientY, x: shape.x, y: shape.y, before: cloneState(state) }; element.setPointerCapture(event.pointerId);
+    });
+    element.addEventListener('pointermove', (event) => {
+      if (!start) return; const scale = canvas.clientWidth / WIDTH || 1, shape = state.shapes.find((item) => item.id === element.dataset.shapeId);
+      shape.x = Math.max(0, Math.min(WIDTH - shape.width, start.x + (event.clientX - start.pointerX) / scale)); shape.y = Math.max(0, Math.min(HEIGHT - shape.height, start.y + (event.clientY - start.pointerY) / scale));
+      element.style.left = `${shape.x * scale}px`; element.style.top = `${shape.y * scale}px`;
+    });
+    const stop = (event) => {
+      if (!start) return; if (JSON.stringify(start.before.shapes) !== JSON.stringify(state.shapes)) { past.push(start.before); future = []; updateHistoryButtons(); }
       start = null; if (element.hasPointerCapture(event.pointerId)) element.releasePointerCapture(event.pointerId);
     };
     element.addEventListener('pointerup', stop); element.addEventListener('pointercancel', stop);
