@@ -33,6 +33,20 @@ test('旧パネル透明度と斜め設定を新しい個別設定へ移行す�
   assert.equal(panel.borderOpacity, 35); assert.equal(panel.backgroundOpacity, 35);
   assert.equal(panel.cornerTopLeft, false); assert.equal(panel.cornerBottomRight, false);
 });
+test('文字の編集値を正規化してOBS用HTMLへ反映する', () => {
+  const text = { id: 'text-1', x: 100, y: 200, content: '配信タイトル', fontFamily: "'Yu Gothic', 'YuGothic', sans-serif", fontSize: 72, color: '#ABCDEF', opacity: 80, bold: true, align: 'center' };
+  const state = normalizeState({ texts: [text] });
+  assert.equal(state.texts[0].color, '#abcdef'); assert.equal(state.texts[0].fontSize, 72); assert.equal(state.texts[0].bold, true);
+  const html = buildObsHtml({ texts: [text] });
+  assert.match(html, /data-text-id="text-1"/); assert.match(html, /font-size:72px/); assert.match(html, /color:#abcdefcc/);
+  assert.match(html, /font-weight:700;text-align:center/); assert.match(html, />配信タイトル<\/div>/);
+});
+test('文字内容とIDをエスケープし未対応フォントを既定値へ戻す', () => {
+  const state = normalizeState({ texts: [{ id: 'x', x: 0, y: 0, content: '<script>', fontFamily: 'unsafe-font' }] });
+  assert.equal(state.texts[0].fontFamily, 'system-ui');
+  const html = buildObsHtml({ texts: [{ id: '\"><b>', x: 0, y: 0, content: '<script>' }] });
+  assert.doesNotMatch(html, /<script>|<b>/); assert.match(html, /&lt;script&gt;/);
+});
 test('OBS用HTMLは属性値をエスケープする', () => {
   const html = buildObsHtml({ panels: [{ id: '\"><script>', x: 0, y: 0 }] });
   assert.doesNotMatch(html, /<script>/); assert.match(html, /&quot;&gt;&lt;script&gt;/);

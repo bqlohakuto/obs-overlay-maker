@@ -17,7 +17,7 @@
 
       <div class="tool-group">
         <button id="addPanelBtn" type="button">＋ パネル追加</button>
-        <button type="button" disabled>＋ 文字追加</button>
+        <button id="addTextBtn" type="button">＋ 文字追加</button>
         <button type="button" disabled>＋ 時計追加</button>
       </div>
 
@@ -58,6 +58,41 @@
         <div class="size-row">
           <label for="panelWidth">幅<input id="panelWidth" type="number" min="80" max="1920" step="10" disabled></label>
           <label for="panelHeight">高さ<input id="panelHeight" type="number" min="50" max="1080" step="10" disabled></label>
+        </div>
+      </section>
+
+      <section class="text-controls" aria-labelledby="textControlsTitle">
+        <div>
+          <p class="eyebrow">TEXT</p>
+          <h2 id="textControlsTitle">文字編集</h2>
+        </div>
+        <p id="textSelectionMessage" class="image-name">編集する文字を選択してください</p>
+        <label for="textContent">内容</label>
+        <textarea id="textContent" rows="3" disabled></textarea>
+        <label for="textFontFamily">フォント</label>
+        <select id="textFontFamily" disabled>
+          <option value="system-ui">システム標準</option>
+          <option value="'Yu Gothic', 'YuGothic', sans-serif">游ゴシック</option>
+          <option value="Meiryo, sans-serif">メイリオ</option>
+          <option value="Arial, sans-serif">Arial</option>
+          <option value="Georgia, serif">Georgia</option>
+          <option value="Impact, sans-serif">Impact</option>
+          <option value="monospace">等幅フォント</option>
+        </select>
+        <div class="size-row">
+          <label for="textFontSize">文字サイズ<input id="textFontSize" type="number" min="8" max="300" step="1" disabled></label>
+          <label for="textColor">文字色<input id="textColor" type="color" value="#ffffff" disabled></label>
+        </div>
+        <label class="opacity-control" for="textOpacity">
+          <span>文字の透明度</span>
+          <output id="textOpacityValue" for="textOpacity">100%</output>
+        </label>
+        <input id="textOpacity" type="range" min="0" max="100" value="100" disabled>
+        <div class="text-option-row">
+          <label><input id="textBold" type="checkbox" disabled>太字</label>
+          <label for="textAlign">配置
+            <select id="textAlign" disabled><option value="left">左</option><option value="center">中央</option><option value="right">右</option></select>
+          </label>
         </div>
       </section>
 

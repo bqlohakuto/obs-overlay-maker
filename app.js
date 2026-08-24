@@ -2,7 +2,8 @@
   const STORAGE_KEY = 'obs-overlay-maker-state-v1';
   const WIDTH = 1920, HEIGHT = 1080, PANEL_W = 320, PANEL_H = 120;
   const PANEL_DEFAULTS = { width: PANEL_W, height: PANEL_H, borderColor: '#65e6ff', backgroundColor: '#142a42', borderOpacity: 100, backgroundOpacity: 90, borderStyle: 'solid', cornerTopLeft: true, cornerTopRight: true, cornerBottomLeft: true, cornerBottomRight: true };
-  const initialState = () => ({ panels: [], gameImage: null, gameImageName: '', gameImageOpacity: 35 });
+  const TEXT_FONTS = ['system-ui', "'Yu Gothic', 'YuGothic', sans-serif", 'Meiryo, sans-serif', 'Arial, sans-serif', 'Georgia, serif', 'Impact, sans-serif', 'monospace'];
+  const initialState = () => ({ panels: [], texts: [], gameImage: null, gameImageName: '', gameImageOpacity: 35 });
   const cloneState = (state) => JSON.parse(JSON.stringify(state));
 
   function normalizeState(value) {
@@ -26,6 +27,18 @@
         cornerBottomLeft: typeof panel.cornerBottomLeft === 'boolean' ? panel.cornerBottomLeft : (typeof panel.diagonalCorners === 'boolean' ? panel.diagonalCorners : true),
         cornerBottomRight: typeof panel.cornerBottomRight === 'boolean' ? panel.cornerBottomRight : (typeof panel.diagonalCorners === 'boolean' ? panel.diagonalCorners : true)
       }));
+    if (Array.isArray(value.texts)) state.texts = value.texts
+      .filter((text) => text && Number.isFinite(text.x) && Number.isFinite(text.y))
+      .map((text, index) => ({
+        id: typeof text.id === 'string' ? text.id : `text-${index + 1}`,
+        x: Math.max(0, Math.min(WIDTH - 80, text.x)), y: Math.max(0, Math.min(HEIGHT - 20, text.y)),
+        content: typeof text.content === 'string' ? text.content.slice(0, 1000) : '新しい文字',
+        fontFamily: TEXT_FONTS.includes(text.fontFamily) ? text.fontFamily : 'system-ui',
+        fontSize: Math.max(8, Math.min(300, Number(text.fontSize) || 48)),
+        color: /^#[0-9a-f]{6}$/i.test(text.color) ? text.color.toLowerCase() : '#ffffff',
+        opacity: Math.max(0, Math.min(100, Number.isFinite(Number(text.opacity)) ? Number(text.opacity) : 100)),
+        bold: Boolean(text.bold), align: ['left', 'center', 'right'].includes(text.align) ? text.align : 'left'
+      }));
     state.gameImage = typeof value.gameImage === 'string' ? value.gameImage : null;
     state.gameImageName = typeof value.gameImageName === 'string' ? value.gameImageName : '';
     state.gameImageOpacity = Math.max(0, Math.min(100, Number(value.gameImageOpacity) || 0));
@@ -42,8 +55,12 @@
   }
 
   function buildObsHtml(state) {
-    const panels = normalizeState(state).panels.map((panel) =>
+    const normalized = normalizeState(state);
+    const panels = normalized.panels.map((panel) =>
       `    <div class="overlay-panel" data-panel-id="${escapeHtml(panel.id)}" style="left:${panel.x}px;top:${panel.y}px;width:${panel.width}px;height:${panel.height}px;border-color:${rgba(panel.borderColor, panel.borderOpacity)};border-style:${panel.borderStyle};border-width:${panel.borderStyle === 'double' ? 4 : 2}px;background-color:${rgba(panel.backgroundColor, panel.backgroundOpacity)};clip-path:${panelClipPath(panel)}"></div>`
+    ).join('\n');
+    const texts = normalized.texts.map((text) =>
+      `    <div class="overlay-text" data-text-id="${escapeHtml(text.id)}" style="left:${text.x}px;top:${text.y}px;font-family:${escapeHtml(text.fontFamily)};font-size:${text.fontSize}px;color:${rgba(text.color, text.opacity)};font-weight:${text.bold ? 700 : 400};text-align:${text.align}">${escapeHtml(text.content)}</div>`
     ).join('\n');
     return `<!doctype html>
 <html lang="ja">
@@ -55,11 +72,13 @@
     html,body{margin:0;width:1920px;height:1080px;overflow:hidden;background:transparent}
     .overlay{position:relative;width:1920px;height:1080px}
     .overlay-panel{position:absolute;width:320px;height:120px;border-width:2px;border-style:solid;box-sizing:border-box}
+    .overlay-text{position:absolute;min-width:80px;max-width:1920px;white-space:pre-wrap;overflow-wrap:anywhere;line-height:1.2}
   </style>
 </head>
 <body>
   <div class="overlay">
 ${panels}
+${texts}
   </div>
 </body>
 </html>`;
@@ -69,7 +88,7 @@ ${panels}
   if (!root.document) return;
   const document = root.document;
   const byId = (id) => document.getElementById(id);
-  const canvas = byId('overlayCanvas'), addPanelBtn = byId('addPanelBtn');
+  const canvas = byId('overlayCanvas'), addPanelBtn = byId('addPanelBtn'), addTextBtn = byId('addTextBtn');
   const undoBtn = byId('undoBtn'), redoBtn = byId('redoBtn'), saveBtn = byId('saveBtn');
   const loadBtn = byId('loadBtn'), exportBtn = byId('exportBtn'), editorMessage = byId('editorMessage');
   const gameImageInput = byId('gameImageInput'), gameReferenceImage = byId('gameReferenceImage');
@@ -84,12 +103,17 @@ ${panels}
   const panelCornerBottomLeft = byId('panelCornerBottomLeft'), panelCornerBottomRight = byId('panelCornerBottomRight');
   const panelWidth = byId('panelWidth'), panelHeight = byId('panelHeight');
   const panelInputs = [panelBorderColor, panelBackgroundColor, panelBorderOpacity, panelBackgroundOpacity, panelBorderStyle, panelCornerTopLeft, panelCornerTopRight, panelCornerBottomLeft, panelCornerBottomRight, panelWidth, panelHeight];
-  let state = initialState(), past = [], future = [], selectedPanelId = null;
+  const textSelectionMessage = byId('textSelectionMessage'), textContent = byId('textContent');
+  const textFontFamily = byId('textFontFamily'), textFontSize = byId('textFontSize'), textColor = byId('textColor');
+  const textOpacity = byId('textOpacity'), textOpacityValue = byId('textOpacityValue'), textBold = byId('textBold'), textAlign = byId('textAlign');
+  const textInputs = [textContent, textFontFamily, textFontSize, textColor, textOpacity, textBold, textAlign];
+  let state = initialState(), past = [], future = [], selectedPanelId = null, selectedTextId = null;
 
   const updateHistoryButtons = () => { undoBtn.disabled = !past.length; redoBtn.disabled = !future.length; };
   function commit(nextState) { past.push(cloneState(state)); state = normalizeState(nextState); future = []; render(); }
   function render() {
     canvas.querySelectorAll('.overlay-panel').forEach((panel) => panel.remove());
+    canvas.querySelectorAll('.overlay-text').forEach((text) => text.remove());
     const scale = canvas.clientWidth / WIDTH;
     state.panels.forEach((data) => {
       const panel = document.createElement('div');
@@ -102,13 +126,20 @@ ${panels}
       panel.style.clipPath = panelClipPath(data);
       enableDragging(panel); canvas.appendChild(panel);
     });
+    state.texts.forEach((data) => {
+      const text = document.createElement('div'); text.className = 'overlay-text'; text.dataset.textId = data.id;
+      text.textContent = data.content; text.style.left = `${data.x * scale}px`; text.style.top = `${data.y * scale}px`;
+      text.style.minWidth = `${80 * scale}px`; text.style.fontFamily = data.fontFamily; text.style.fontSize = `${data.fontSize * scale}px`;
+      text.style.color = rgba(data.color, data.opacity); text.style.fontWeight = data.bold ? '700' : '400'; text.style.textAlign = data.align;
+      enableTextDragging(text); canvas.appendChild(text);
+    });
     if (state.gameImage) gameReferenceImage.src = state.gameImage; else gameReferenceImage.removeAttribute('src');
     gameReferenceImage.hidden = !state.gameImage;
     gameReferenceImage.style.opacity = String(state.gameImageOpacity / 100);
     gameImageName.textContent = state.gameImageName || '画像は選択されていません';
     gameImageOpacity.value = String(state.gameImageOpacity);
     gameImageOpacityValue.value = `${state.gameImageOpacity}%`; gameImageOpacityValue.textContent = `${state.gameImageOpacity}%`;
-    removeGameImageBtn.disabled = !state.gameImage; updatePanelControls(); updateHistoryButtons();
+    removeGameImageBtn.disabled = !state.gameImage; updatePanelControls(); updateTextControls(); updateHistoryButtons();
   }
 
   function updatePanelControls() {
@@ -130,12 +161,30 @@ ${panels}
     const next = cloneState(state), target = next.panels.find((item) => item.id === selectedPanelId);
     Object.assign(target, changes); commit(next);
   }
+  function updateTextControls() {
+    const text = state.texts.find((item) => item.id === selectedTextId);
+    textInputs.forEach((input) => { input.disabled = !text; });
+    textSelectionMessage.textContent = text ? `${text.id} を編集中` : '編集する文字を選択してください';
+    if (!text) return;
+    textContent.value = text.content; textFontFamily.value = text.fontFamily; textFontSize.value = String(text.fontSize); textColor.value = text.color;
+    textOpacity.value = String(text.opacity); textOpacityValue.value = `${text.opacity}%`; textOpacityValue.textContent = `${text.opacity}%`;
+    textBold.checked = text.bold; textAlign.value = text.align;
+  }
+  function editSelectedText(changes) {
+    const text = state.texts.find((item) => item.id === selectedTextId); if (!text) return;
+    const next = cloneState(state), target = next.texts.find((item) => item.id === selectedTextId); Object.assign(target, changes); commit(next);
+  }
 
   addPanelBtn.addEventListener('click', () => {
     const next = cloneState(state);
     const number = next.panels.reduce((max, panel) => Math.max(max, Number(panel.id.replace('panel-', '')) || 0), 0) + 1;
     const id = `panel-${number}`;
     next.panels.push({ id, x: 40 + number * 16, y: 40 + number * 16, ...PANEL_DEFAULTS }); selectedPanelId = id; commit(next);
+  });
+  addTextBtn.addEventListener('click', () => {
+    const next = cloneState(state), number = next.texts.reduce((max, text) => Math.max(max, Number(text.id.replace('text-', '')) || 0), 0) + 1;
+    const id = `text-${number}`; next.texts.push({ id, x: 80 + number * 16, y: 80 + number * 16, content: '新しい文字', fontFamily: 'system-ui', fontSize: 48, color: '#ffffff', opacity: 100, bold: false, align: 'left' });
+    selectedTextId = id; commit(next);
   });
   panelBorderColor.addEventListener('input', () => editSelectedPanel({ borderColor: panelBorderColor.value }));
   panelBackgroundColor.addEventListener('input', () => editSelectedPanel({ backgroundColor: panelBackgroundColor.value }));
@@ -150,6 +199,14 @@ ${panels}
   panelCornerBottomRight.addEventListener('change', () => editSelectedPanel({ cornerBottomRight: panelCornerBottomRight.checked }));
   panelWidth.addEventListener('change', () => editSelectedPanel({ width: Number(panelWidth.value) }));
   panelHeight.addEventListener('change', () => editSelectedPanel({ height: Number(panelHeight.value) }));
+  textContent.addEventListener('input', () => editSelectedText({ content: textContent.value }));
+  textFontFamily.addEventListener('change', () => editSelectedText({ fontFamily: textFontFamily.value }));
+  textFontSize.addEventListener('change', () => editSelectedText({ fontSize: Number(textFontSize.value) }));
+  textColor.addEventListener('input', () => editSelectedText({ color: textColor.value }));
+  textOpacity.addEventListener('input', () => { textOpacityValue.value = `${textOpacity.value}%`; textOpacityValue.textContent = `${textOpacity.value}%`; });
+  textOpacity.addEventListener('change', () => editSelectedText({ opacity: Number(textOpacity.value) }));
+  textBold.addEventListener('change', () => editSelectedText({ bold: textBold.checked }));
+  textAlign.addEventListener('change', () => editSelectedText({ align: textAlign.value }));
   undoBtn.addEventListener('click', () => { if (past.length) { future.push(cloneState(state)); state = past.pop(); render(); } });
   redoBtn.addEventListener('click', () => { if (future.length) { past.push(cloneState(state)); state = future.pop(); render(); } });
 
@@ -205,6 +262,25 @@ ${panels}
     const stop = (event) => {
       if (!start) return;
       if (JSON.stringify(start.before.panels) !== JSON.stringify(state.panels)) { past.push(start.before); future = []; updateHistoryButtons(); }
+      start = null; if (element.hasPointerCapture(event.pointerId)) element.releasePointerCapture(event.pointerId);
+    };
+    element.addEventListener('pointerup', stop); element.addEventListener('pointercancel', stop);
+  }
+  function enableTextDragging(element) {
+    let start = null;
+    element.addEventListener('pointerdown', (event) => {
+      const text = state.texts.find((item) => item.id === element.dataset.textId); selectedTextId = text.id; updateTextControls();
+      start = { pointerX: event.clientX, pointerY: event.clientY, x: text.x, y: text.y, before: cloneState(state) }; element.setPointerCapture(event.pointerId);
+    });
+    element.addEventListener('pointermove', (event) => {
+      if (!start) return; const scale = canvas.clientWidth / WIDTH || 1, text = state.texts.find((item) => item.id === element.dataset.textId);
+      const width = element.offsetWidth / scale, height = element.offsetHeight / scale;
+      text.x = Math.max(0, Math.min(WIDTH - width, start.x + (event.clientX - start.pointerX) / scale));
+      text.y = Math.max(0, Math.min(HEIGHT - height, start.y + (event.clientY - start.pointerY) / scale));
+      element.style.left = `${text.x * scale}px`; element.style.top = `${text.y * scale}px`;
+    });
+    const stop = (event) => {
+      if (!start) return; if (JSON.stringify(start.before.texts) !== JSON.stringify(state.texts)) { past.push(start.before); future = []; updateHistoryButtons(); }
       start = null; if (element.hasPointerCapture(event.pointerId)) element.releasePointerCapture(event.pointerId);
     };
     element.addEventListener('pointerup', stop); element.addEventListener('pointercancel', stop);
