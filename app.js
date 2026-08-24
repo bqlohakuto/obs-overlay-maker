@@ -4,6 +4,7 @@
   const PANEL_DEFAULTS = { width: PANEL_W, height: PANEL_H, borderColor: '#65e6ff', backgroundColor: '#142a42', borderOpacity: 100, backgroundOpacity: 90, borderStyle: 'solid', cornerTopLeft: true, cornerTopRight: true, cornerBottomLeft: true, cornerBottomRight: true };
   const TEXT_FONTS = ['system-ui', "'Yu Gothic', 'YuGothic', sans-serif", 'Meiryo, sans-serif', 'Arial, sans-serif', 'Georgia, serif', 'Impact, sans-serif', 'monospace'];
   const SHAPE_TYPES = ['star', 'heart', 'diamond', 'circle', 'triangle'];
+  const FRAME_IMAGES = ['cyan', 'japanese-rabbit', 'cyberpunk', 'chinese', 'gothic-rose', 'fantasy', 'japanese-rabbit-red-white', 'steampunk', 'botanical', 'light'].flatMap((name) => [`assets/panel-frame-${name}.png`, `assets/panel-frame-${name}-simple.png`]);
   const initialState = () => ({ panels: [], texts: [], shapes: [], gameImage: null, gameImageName: '', gameImageOpacity: 35 });
   const cloneState = (state) => JSON.parse(JSON.stringify(state));
   function removePanel(state, panelId) {
@@ -29,7 +30,10 @@
         cornerTopLeft: typeof panel.cornerTopLeft === 'boolean' ? panel.cornerTopLeft : (typeof panel.diagonalCorners === 'boolean' ? panel.diagonalCorners : true),
         cornerTopRight: typeof panel.cornerTopRight === 'boolean' ? panel.cornerTopRight : (typeof panel.diagonalCorners === 'boolean' ? panel.diagonalCorners : true),
         cornerBottomLeft: typeof panel.cornerBottomLeft === 'boolean' ? panel.cornerBottomLeft : (typeof panel.diagonalCorners === 'boolean' ? panel.diagonalCorners : true),
-        cornerBottomRight: typeof panel.cornerBottomRight === 'boolean' ? panel.cornerBottomRight : (typeof panel.diagonalCorners === 'boolean' ? panel.diagonalCorners : true)
+        cornerBottomRight: typeof panel.cornerBottomRight === 'boolean' ? panel.cornerBottomRight : (typeof panel.diagonalCorners === 'boolean' ? panel.diagonalCorners : true),
+        frameImage: FRAME_IMAGES.includes(panel.frameImage) ? panel.frameImage : '',
+        frameHue: Math.max(0, Math.min(360, Number(panel.frameHue) || 0)), frameSaturation: Math.max(0, Math.min(200, Number.isFinite(Number(panel.frameSaturation)) ? Number(panel.frameSaturation) : 100)),
+        frameBrightness: Math.max(25, Math.min(175, Number.isFinite(Number(panel.frameBrightness)) ? Number(panel.frameBrightness) : 100))
       }));
     if (Array.isArray(value.texts)) state.texts = value.texts
       .filter((text) => text && Number.isFinite(text.x) && Number.isFinite(text.y))
@@ -65,10 +69,10 @@
   }
   const shapeClipPath = (type) => ({ star: 'polygon(50% 0%,61% 35%,98% 35%,68% 57%,79% 100%,50% 74%,21% 100%,32% 57%,2% 35%,39% 35%)', heart: 'polygon(50% 92%,8% 52%,2% 30%,8% 12%,25% 3%,42% 8%,50% 22%,58% 8%,75% 3%,92% 12%,98% 30%,92% 52%)', diamond: 'polygon(50% 0%,100% 50%,50% 100%,0% 50%)', circle: 'circle(50% at 50% 50%)', triangle: 'polygon(50% 0%,100% 100%,0% 100%)' })[type];
 
-  function buildObsHtml(state) {
+  function buildObsHtml(state, frameAssets = {}) {
     const normalized = normalizeState(state);
     const panels = normalized.panels.map((panel) =>
-      `    <div class="overlay-panel" data-panel-id="${escapeHtml(panel.id)}" style="left:${panel.x}px;top:${panel.y}px;width:${panel.width}px;height:${panel.height}px;border-color:${rgba(panel.borderColor, panel.borderOpacity)};border-style:${panel.borderStyle};border-width:${panel.borderStyle === 'double' ? 4 : 2}px;background-color:${rgba(panel.backgroundColor, panel.backgroundOpacity)};clip-path:${panelClipPath(panel)}"></div>`
+      `    <div class="overlay-panel" data-panel-id="${escapeHtml(panel.id)}" style="left:${panel.x}px;top:${panel.y}px;width:${panel.width}px;height:${panel.height}px;border-color:${panel.frameImage ? 'transparent' : rgba(panel.borderColor, panel.borderOpacity)};border-style:${panel.borderStyle};border-width:${panel.borderStyle === 'double' ? 4 : 2}px;background-color:${rgba(panel.backgroundColor, panel.backgroundOpacity)};clip-path:${panel.frameImage ? 'none' : panelClipPath(panel)}">${panel.frameImage ? `<img class="panel-frame-image" alt="" src="${escapeHtml(frameAssets[panel.frameImage] || panel.frameImage)}" style="filter:hue-rotate(${panel.frameHue}deg) saturate(${panel.frameSaturation}%) brightness(${panel.frameBrightness}%)">` : ''}</div>`
     ).join('\n');
     const texts = normalized.texts.map((text) =>
       `    <div class="overlay-text" data-text-id="${escapeHtml(text.id)}" style="left:${text.x}px;top:${text.y}px;font-family:${escapeHtml(text.fontFamily)};font-size:${text.fontSize}px;color:${rgba(text.color, text.opacity)};font-weight:${text.bold ? 700 : 400};text-align:${text.align}">${escapeHtml(text.content)}</div>`
@@ -84,6 +88,7 @@
     html,body{margin:0;width:1920px;height:1080px;overflow:hidden;background:transparent}
     .overlay{position:relative;width:1920px;height:1080px}
     .overlay-panel{position:absolute;width:320px;height:120px;border-width:2px;border-style:solid;box-sizing:border-box}
+    .panel-frame-image{position:absolute;inset:0;width:100%;height:100%;pointer-events:none}
     .overlay-text{position:absolute;min-width:80px;max-width:1920px;white-space:pre-wrap;overflow-wrap:anywhere;line-height:1.2}
     .overlay-shape{position:absolute}
   </style>
@@ -117,7 +122,10 @@ ${shapes}
   const panelCornerBottomLeft = byId('panelCornerBottomLeft'), panelCornerBottomRight = byId('panelCornerBottomRight');
   const panelWidth = byId('panelWidth'), panelHeight = byId('panelHeight');
   const deletePanelBtn = byId('deletePanelBtn');
-  const panelInputs = [panelBorderColor, panelBackgroundColor, panelBorderOpacity, panelBackgroundOpacity, panelBorderStyle, panelCornerTopLeft, panelCornerTopRight, panelCornerBottomLeft, panelCornerBottomRight, panelWidth, panelHeight];
+  const panelFrameImage = byId('panelFrameImage'), panelFrameFilterControls = byId('panelFrameFilterControls');
+  const panelFrameHue = byId('panelFrameHue'), panelFrameHueValue = byId('panelFrameHueValue'), panelFrameSaturation = byId('panelFrameSaturation'), panelFrameSaturationValue = byId('panelFrameSaturationValue');
+  const panelFrameBrightness = byId('panelFrameBrightness'), panelFrameBrightnessValue = byId('panelFrameBrightnessValue');
+  const panelInputs = [panelFrameImage, panelBorderColor, panelBackgroundColor, panelBorderOpacity, panelBackgroundOpacity, panelBorderStyle, panelCornerTopLeft, panelCornerTopRight, panelCornerBottomLeft, panelCornerBottomRight, panelWidth, panelHeight, panelFrameHue, panelFrameSaturation, panelFrameBrightness];
   const textSelectionMessage = byId('textSelectionMessage'), textContent = byId('textContent');
   const textFontFamily = byId('textFontFamily'), textFontSize = byId('textFontSize'), textColor = byId('textColor');
   const textOpacity = byId('textOpacity'), textOpacityValue = byId('textOpacityValue'), textBold = byId('textBold'), textAlign = byId('textAlign');
@@ -142,7 +150,11 @@ ${shapes}
       panel.style.borderColor = rgba(data.borderColor, data.borderOpacity); panel.style.borderStyle = data.borderStyle;
       panel.style.borderWidth = `${data.borderStyle === 'double' ? 4 : 2}px`;
       panel.style.backgroundColor = rgba(data.backgroundColor, data.backgroundOpacity);
-      panel.style.clipPath = panelClipPath(data);
+      panel.style.clipPath = data.frameImage ? 'none' : panelClipPath(data); panel.style.borderColor = data.frameImage ? 'transparent' : rgba(data.borderColor, data.borderOpacity);
+      if (data.frameImage) {
+        const image = document.createElement('img'); image.className = 'panel-frame-image'; image.alt = ''; image.src = data.frameImage;
+        image.style.filter = `hue-rotate(${data.frameHue}deg) saturate(${data.frameSaturation}%) brightness(${data.frameBrightness}%)`; panel.appendChild(image);
+      }
       enableDragging(panel); canvas.appendChild(panel);
     });
     state.texts.forEach((data) => {
@@ -176,6 +188,11 @@ ${shapes}
     panelBorderOpacity.value = String(panel.borderOpacity); panelBorderOpacityValue.value = `${panel.borderOpacity}%`; panelBorderOpacityValue.textContent = `${panel.borderOpacity}%`;
     panelBackgroundOpacity.value = String(panel.backgroundOpacity); panelBackgroundOpacityValue.value = `${panel.backgroundOpacity}%`; panelBackgroundOpacityValue.textContent = `${panel.backgroundOpacity}%`;
     panelBorderStyle.value = panel.borderStyle;
+    panelFrameImage.value = panel.frameImage; panelFrameFilterControls.hidden = !panel.frameImage;
+    panelFrameHue.value = String(panel.frameHue); panelFrameHueValue.value = `${panel.frameHue}°`; panelFrameHueValue.textContent = `${panel.frameHue}°`;
+    panelFrameSaturation.value = String(panel.frameSaturation); panelFrameSaturationValue.value = `${panel.frameSaturation}%`; panelFrameSaturationValue.textContent = `${panel.frameSaturation}%`;
+    panelFrameBrightness.value = String(panel.frameBrightness); panelFrameBrightnessValue.value = `${panel.frameBrightness}%`; panelFrameBrightnessValue.textContent = `${panel.frameBrightness}%`;
+    [panelBorderColor, panelBorderOpacity, panelBorderStyle, panelCornerTopLeft, panelCornerTopRight, panelCornerBottomLeft, panelCornerBottomRight].forEach((input) => { input.disabled = Boolean(panel.frameImage); });
     panelCornerTopLeft.checked = panel.cornerTopLeft; panelCornerTopRight.checked = panel.cornerTopRight;
     panelCornerBottomLeft.checked = panel.cornerBottomLeft; panelCornerBottomRight.checked = panel.cornerBottomRight;
     panelWidth.value = String(panel.width); panelHeight.value = String(panel.height);
@@ -223,6 +240,7 @@ ${shapes}
     next.shapes.push({ id, x: 120 + number * 16, y: 120 + number * 16, width: 160, height: 160, type: 'star', color: '#ff5d8f', opacity: 100, rotation: 0 }); selectedShapeId = id; commit(next);
   });
   panelBorderColor.addEventListener('input', () => editSelectedPanel({ borderColor: panelBorderColor.value }));
+  panelFrameImage.addEventListener('change', () => editSelectedPanel({ frameImage: panelFrameImage.value }));
   panelBackgroundColor.addEventListener('input', () => editSelectedPanel({ backgroundColor: panelBackgroundColor.value }));
   panelBorderOpacity.addEventListener('input', () => { panelBorderOpacityValue.value = `${panelBorderOpacity.value}%`; panelBorderOpacityValue.textContent = `${panelBorderOpacity.value}%`; });
   panelBorderOpacity.addEventListener('change', () => editSelectedPanel({ borderOpacity: Number(panelBorderOpacity.value) }));
@@ -235,6 +253,12 @@ ${shapes}
   panelCornerBottomRight.addEventListener('change', () => editSelectedPanel({ cornerBottomRight: panelCornerBottomRight.checked }));
   panelWidth.addEventListener('change', () => editSelectedPanel({ width: Number(panelWidth.value) }));
   panelHeight.addEventListener('change', () => editSelectedPanel({ height: Number(panelHeight.value) }));
+  panelFrameHue.addEventListener('input', () => { panelFrameHueValue.value = `${panelFrameHue.value}°`; panelFrameHueValue.textContent = `${panelFrameHue.value}°`; });
+  panelFrameHue.addEventListener('change', () => editSelectedPanel({ frameHue: Number(panelFrameHue.value) }));
+  panelFrameSaturation.addEventListener('input', () => { panelFrameSaturationValue.value = `${panelFrameSaturation.value}%`; panelFrameSaturationValue.textContent = `${panelFrameSaturation.value}%`; });
+  panelFrameSaturation.addEventListener('change', () => editSelectedPanel({ frameSaturation: Number(panelFrameSaturation.value) }));
+  panelFrameBrightness.addEventListener('input', () => { panelFrameBrightnessValue.value = `${panelFrameBrightness.value}%`; panelFrameBrightnessValue.textContent = `${panelFrameBrightness.value}%`; });
+  panelFrameBrightness.addEventListener('change', () => editSelectedPanel({ frameBrightness: Number(panelFrameBrightness.value) }));
   deletePanelBtn.addEventListener('click', () => {
     if (!selectedPanelId) return; const next = removePanel(state, selectedPanelId); selectedPanelId = null; commit(next);
     editorMessage.textContent = 'パネルを削除しました。';
@@ -284,10 +308,18 @@ ${shapes}
       commit(JSON.parse(saved)); editorMessage.textContent = '保存データを読み込みました。';
     } catch (error) { editorMessage.textContent = '保存データを読み込めませんでした。'; }
   });
-  exportBtn.addEventListener('click', () => {
-    const url = URL.createObjectURL(new Blob([buildObsHtml(state)], { type: 'text/html;charset=utf-8' }));
+  const frameToDataUrl = async (path) => {
+    const response = await fetch(path); if (!response.ok) throw new Error('frame fetch failed'); const blob = await response.blob();
+    return new Promise((resolve, reject) => { const reader = new FileReader(); reader.addEventListener('load', () => resolve(reader.result)); reader.addEventListener('error', reject); reader.readAsDataURL(blob); });
+  };
+  exportBtn.addEventListener('click', async () => {
+    exportBtn.disabled = true; editorMessage.textContent = 'OBS用HTMLを準備しています…';
+    const paths = [...new Set(state.panels.map((panel) => panel.frameImage).filter(Boolean))], frameAssets = {};
+    try { await Promise.all(paths.map(async (path) => { frameAssets[path] = await frameToDataUrl(path); })); }
+    catch (error) { editorMessage.textContent = '画像枠を読み込めませんでした。公開サイトから再度お試しください。'; exportBtn.disabled = false; return; }
+    const url = URL.createObjectURL(new Blob([buildObsHtml(state, frameAssets)], { type: 'text/html;charset=utf-8' }));
     const link = document.createElement('a'); link.href = url; link.download = 'obs-overlay.html'; link.click(); URL.revokeObjectURL(url);
-    editorMessage.textContent = 'OBS用HTMLを書き出しました。';
+    editorMessage.textContent = 'OBS用HTMLを書き出しました。'; exportBtn.disabled = false;
   });
 
   function enableDragging(element) {

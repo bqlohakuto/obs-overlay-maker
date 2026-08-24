@@ -28,6 +28,29 @@
           <h2 id="panelControlsTitle">パネル編集</h2>
         </div>
         <p id="panelSelectionMessage" class="image-name">編集するパネルを選択してください</p>
+        <label for="panelFrameImage">枠デザイン</label>
+        <select id="panelFrameImage" disabled>
+          <option value="">標準（色・線を編集）</option>
+          <optgroup label="通常版">
+            <option value="assets/panel-frame-cyan.png">シアン・近未来</option><option value="assets/panel-frame-japanese-rabbit.png">和風・うさぎ</option>
+            <option value="assets/panel-frame-cyberpunk.png">サイバーパンク</option><option value="assets/panel-frame-chinese.png">中華</option>
+            <option value="assets/panel-frame-gothic-rose.png">ゴシック・薔薇</option><option value="assets/panel-frame-fantasy.png">ファンタジー</option>
+            <option value="assets/panel-frame-japanese-rabbit-red-white.png">和風うさぎ・赤白</option><option value="assets/panel-frame-steampunk.png">スチームパンク</option>
+            <option value="assets/panel-frame-botanical.png">植物</option><option value="assets/panel-frame-light.png">光</option>
+          </optgroup>
+          <optgroup label="シンプル版">
+            <option value="assets/panel-frame-cyan-simple.png">シアン・近未来（シンプル）</option><option value="assets/panel-frame-japanese-rabbit-simple.png">和風・うさぎ（シンプル）</option>
+            <option value="assets/panel-frame-cyberpunk-simple.png">サイバーパンク（シンプル）</option><option value="assets/panel-frame-chinese-simple.png">中華（シンプル）</option>
+            <option value="assets/panel-frame-gothic-rose-simple.png">ゴシック・薔薇（シンプル）</option><option value="assets/panel-frame-fantasy-simple.png">ファンタジー（シンプル）</option>
+            <option value="assets/panel-frame-japanese-rabbit-red-white-simple.png">和風うさぎ・赤白（シンプル）</option><option value="assets/panel-frame-steampunk-simple.png">スチームパンク（シンプル）</option>
+            <option value="assets/panel-frame-botanical-simple.png">植物（シンプル）</option><option value="assets/panel-frame-light-simple.png">光（シンプル）</option>
+          </optgroup>
+        </select>
+        <div id="panelFrameFilterControls" class="frame-filter-controls" hidden>
+          <label class="opacity-control" for="panelFrameHue"><span>色相</span><output id="panelFrameHueValue">0°</output></label><input id="panelFrameHue" type="range" min="0" max="360" value="0">
+          <label class="opacity-control" for="panelFrameSaturation"><span>彩度</span><output id="panelFrameSaturationValue">100%</output></label><input id="panelFrameSaturation" type="range" min="0" max="200" value="100">
+          <label class="opacity-control" for="panelFrameBrightness"><span>明るさ</span><output id="panelFrameBrightnessValue">100%</output></label><input id="panelFrameBrightness" type="range" min="25" max="175" value="100">
+        </div>
         <div class="color-row">
           <label for="panelBorderColor">枠色<input id="panelBorderColor" type="color" value="#65e6ff" disabled></label>
           <label for="panelBackgroundColor">背景色<input id="panelBackgroundColor" type="color" value="#142a42" disabled></label>

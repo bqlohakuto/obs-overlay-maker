@@ -77,6 +77,8 @@ h1, h2, p { margin-top: 0; }
 .panel-controls, .text-controls, .shape-controls { display: grid; gap: 10px; }
 .panel-controls h2, .text-controls h2, .shape-controls h2 { margin-bottom: 0; font-size: 18px; }
 .panel-controls > label:not(.opacity-control) { color: #c5d4e5; font-size: 14px; }
+.frame-filter-controls { display: grid; gap: 7px; padding: 10px; border: 1px solid #2a465e; border-radius: 8px; }
+.frame-filter-controls[hidden] { display: none; }
 .color-row { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
 .color-row label { display: grid; gap: 6px; color: #c5d4e5; font-size: 14px; }
 .color-row input { width: 100%; height: 36px; padding: 3px; border: 1px solid #2a465e; border-radius: 8px; background: #142638; }
@@ -243,6 +245,7 @@ h1, h2, p { margin-top: 0; }
 }
 
 .overlay-panel:active { cursor: grabbing; }
+.panel-frame-image { position: absolute; inset: 0; width: 100%; height: 100%; pointer-events: none; z-index: 1; }
 
 .overlay-text {
   position: absolute;

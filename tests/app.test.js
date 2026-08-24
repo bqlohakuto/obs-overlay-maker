@@ -63,6 +63,18 @@ test('未対応の図形と範囲外のサイズを安全な値へ戻す', () =>
   const shape = normalizeState({ shapes: [{ id: 'x', x: 9999, y: 9999, width: 9999, height: -1, type: 'unknown', opacity: 999 }] }).shapes[0];
   assert.equal(shape.type, 'star'); assert.equal(shape.width, 1920); assert.equal(shape.height, 20); assert.equal(shape.x, 0); assert.equal(shape.opacity, 100);
 });
+test('画像パネル枠と色調整を正規化してOBS用HTMLへ埋め込む', () => {
+  const path = 'assets/panel-frame-cyberpunk-simple.png';
+  const panel = { id: 'image-panel', x: 0, y: 0, frameImage: path, frameHue: 180, frameSaturation: 140, frameBrightness: 80 };
+  const state = normalizeState({ panels: [panel] }); assert.equal(state.panels[0].frameImage, path); assert.equal(state.panels[0].frameHue, 180);
+  const html = buildObsHtml({ panels: [panel] }, { [path]: 'data:image/png;base64,frame' });
+  assert.match(html, /class="panel-frame-image"/); assert.match(html, /src="data:image\/png;base64,frame"/);
+  assert.match(html, /hue-rotate\(180deg\) saturate\(140%\) brightness\(80%\)/); assert.match(html, /border-color:transparent/);
+});
+test('未登録のパネル枠画像を読み込まない', () => {
+  const panel = normalizeState({ panels: [{ id: 'p', x: 0, y: 0, frameImage: 'javascript:alert(1)' }] }).panels[0];
+  assert.equal(panel.frameImage, '');
+});
 test('OBS用HTMLは属性値をエスケープする', () => {
   const html = buildObsHtml({ panels: [{ id: '\"><script>', x: 0, y: 0 }] });
   assert.doesNotMatch(html, /<script>/); assert.match(html, /&quot;&gt;&lt;script&gt;/);
