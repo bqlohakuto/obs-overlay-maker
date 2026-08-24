@@ -282,12 +282,27 @@ ${shapes}
   undoBtn.addEventListener('click', () => { if (past.length) { future.push(cloneState(state)); state = past.pop(); render(); } });
   redoBtn.addEventListener('click', () => { if (future.length) { past.push(cloneState(state)); state = future.pop(); render(); } });
 
-  gameImageInput.addEventListener('change', () => {
+  const fileToDataUrl = (file) => new Promise((resolve, reject) => {
+    const reader = new FileReader(); reader.addEventListener('load', () => resolve(reader.result)); reader.addEventListener('error', reject); reader.readAsDataURL(file);
+  });
+  const prepareReferenceImage = async (file) => {
+    if (file.size > 50 * 1024 * 1024) throw new Error('file-too-large');
+    if (typeof createImageBitmap !== 'function') return fileToDataUrl(file);
+    const bitmap = await createImageBitmap(file), scale = Math.min(1, WIDTH / bitmap.width, HEIGHT / bitmap.height);
+    const output = document.createElement('canvas'); output.width = Math.max(1, Math.round(bitmap.width * scale)); output.height = Math.max(1, Math.round(bitmap.height * scale));
+    output.getContext('2d').drawImage(bitmap, 0, 0, output.width, output.height); bitmap.close();
+    const blob = await new Promise((resolve, reject) => output.toBlob((result) => result ? resolve(result) : reject(new Error('conversion-failed')), 'image/webp', .86));
+    return fileToDataUrl(blob);
+  };
+  gameImageInput.addEventListener('change', async () => {
     const [file] = gameImageInput.files; gameImageMessage.textContent = ''; if (!file) return;
     if (!file.type.startsWith('image/')) { gameImageInput.value = ''; gameImageMessage.textContent = '画像ファイルを選択してください。'; return; }
-    const reader = new FileReader();
-    reader.addEventListener('load', () => { const next = cloneState(state); next.gameImage = reader.result; next.gameImageName = file.name; commit(next); });
-    reader.addEventListener('error', () => { gameImageMessage.textContent = '画像を読み込めませんでした。'; }); reader.readAsDataURL(file);
+    gameImageInput.disabled = true; gameImageMessage.textContent = '画像を軽量化しています…';
+    try {
+      const dataUrl = await prepareReferenceImage(file), next = cloneState(state); next.gameImage = dataUrl; next.gameImageName = file.name; commit(next); gameImageMessage.textContent = '';
+    } catch (error) {
+      gameImageInput.value = ''; gameImageMessage.textContent = error.message === 'file-too-large' ? '画像は50MB以下のものを選択してください。' : '画像を読み込めませんでした。別の画像をお試しください。';
+    } finally { gameImageInput.disabled = false; }
   });
   gameImageOpacity.addEventListener('input', () => {
     gameReferenceImage.style.opacity = String(Number(gameImageOpacity.value) / 100);
