@@ -45,7 +45,8 @@ h1, h2, p { margin-top: 0; }
   gap: 10px;
 }
 
-.tool-group button {
+.tool-group button,
+.history-controls button {
   width: 100%;
   padding: 14px 16px;
   border: 1px solid #2a465e;
@@ -56,12 +57,16 @@ h1, h2, p { margin-top: 0; }
   cursor: pointer;
 }
 
-.reference-controls {
+.reference-controls,
+.history-controls {
   display: grid;
   gap: 10px;
   padding-top: 22px;
   border-top: 1px solid #223042;
 }
+
+.button-row { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+.history-controls button { width: 100%; }
 
 .reference-controls h2 {
   margin-bottom: 0;
@@ -87,7 +92,8 @@ h1, h2, p { margin-top: 0; }
   text-align: center;
 }
 
-.secondary-button:disabled {
+.secondary-button:disabled,
+.history-controls button:disabled {
   opacity: .45;
   cursor: not-allowed;
 }
@@ -109,7 +115,8 @@ h1, h2, p { margin-top: 0; }
   font-size: 14px;
 }
 
-.tool-group button:hover:not(:disabled) {
+.tool-group button:hover:not(:disabled),
+.history-controls button:hover:not(:disabled) {
   border-color: #65e6ff;
 }
 
