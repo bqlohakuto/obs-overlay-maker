@@ -1,0 +1,48 @@
+<!doctype html>
+<html lang="ja">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>OBS Overlay Maker</title>
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+  <div class="app-shell">
+    <aside class="sidebar">
+      <div>
+        <p class="eyebrow">OBS TOOL</p>
+        <h1>Overlay Maker</h1>
+        <p class="muted">1920×1080 の配信オーバーレイをブラウザ上で組み立てます。</p>
+      </div>
+
+      <div class="tool-group">
+        <button id="addPanelBtn" type="button">＋ パネル追加</button>
+        <button type="button" disabled>＋ 文字追加</button>
+        <button type="button" disabled>＋ 時計追加</button>
+      </div>
+
+      <div class="status-card">
+        <span>現在の段階</span>
+        <strong>MVP Step 1</strong>
+        <small>パネル追加とドラッグ移動</small>
+      </div>
+    </aside>
+
+    <main class="workspace">
+      <header class="workspace-header">
+        <div>
+          <p class="eyebrow">PREVIEW</p>
+          <h2>1920 × 1080</h2>
+        </div>
+        <div class="legend">透明部分はOBS上でゲーム画面になります</div>
+      </header>
+
+      <section class="canvas-wrap">
+        <div id="overlayCanvas" class="overlay-canvas" aria-label="OBS overlay canvas"></div>
+      </section>
+    </main>
+  </div>
+
+  <script src="app.js"></script>
+</body>
+</html>
