@@ -308,15 +308,27 @@ ${shapes}
       commit(JSON.parse(saved)); editorMessage.textContent = '保存データを読み込みました。';
     } catch (error) { editorMessage.textContent = '保存データを読み込めませんでした。'; }
   });
+  const imageElementToDataUrl = (image) => {
+    const output = document.createElement('canvas'); output.width = image.naturalWidth; output.height = image.naturalHeight;
+    output.getContext('2d').drawImage(image, 0, 0); return output.toDataURL('image/png');
+  };
   const frameToDataUrl = async (path) => {
-    const response = await fetch(path); if (!response.ok) throw new Error('frame fetch failed'); const blob = await response.blob();
-    return new Promise((resolve, reject) => { const reader = new FileReader(); reader.addEventListener('load', () => resolve(reader.result)); reader.addEventListener('error', reject); reader.readAsDataURL(blob); });
+    const visibleImage = [...canvas.querySelectorAll('.panel-frame-image')].find((image) => image.getAttribute('src') === path && image.complete && image.naturalWidth);
+    if (visibleImage) { try { return imageElementToDataUrl(visibleImage); } catch (error) { /* 通信取得へフォールバック */ } }
+    try {
+      const response = await fetch(new URL(path, document.baseURI), { cache: 'force-cache' }); if (!response.ok) throw new Error(`HTTP ${response.status}`); const blob = await response.blob();
+      return await new Promise((resolve, reject) => { const reader = new FileReader(); reader.addEventListener('load', () => resolve(reader.result)); reader.addEventListener('error', reject); reader.readAsDataURL(blob); });
+    } catch (fetchError) {
+      const image = new Image(); image.crossOrigin = 'anonymous';
+      await new Promise((resolve, reject) => { image.addEventListener('load', resolve, { once: true }); image.addEventListener('error', reject, { once: true }); image.src = new URL(path, document.baseURI).href; });
+      return imageElementToDataUrl(image);
+    }
   };
   exportBtn.addEventListener('click', async () => {
     exportBtn.disabled = true; editorMessage.textContent = 'OBS用HTMLを準備しています…';
     const paths = [...new Set(state.panels.map((panel) => panel.frameImage).filter(Boolean))], frameAssets = {};
     try { await Promise.all(paths.map(async (path) => { frameAssets[path] = await frameToDataUrl(path); })); }
-    catch (error) { editorMessage.textContent = '画像枠を読み込めませんでした。公開サイトから再度お試しください。'; exportBtn.disabled = false; return; }
+    catch (error) { editorMessage.textContent = '画像枠の埋め込みに失敗しました。ページを再読み込みしてお試しください。'; exportBtn.disabled = false; return; }
     const url = URL.createObjectURL(new Blob([buildObsHtml(state, frameAssets)], { type: 'text/html;charset=utf-8' }));
     const link = document.createElement('a'); link.href = url; link.download = 'obs-overlay.html'; link.click(); URL.revokeObjectURL(url);
     editorMessage.textContent = 'OBS用HTMLを書き出しました。'; exportBtn.disabled = false;
