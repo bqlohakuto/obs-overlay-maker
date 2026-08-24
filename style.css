@@ -200,7 +200,8 @@ h1, h2, p { margin-top: 0; }
 
 .overlay-canvas {
   position: relative;
-  width: min(100%, 1440px, calc((100vh - 110px) * 16 / 9));
+  width: 100%;
+  max-width: 1440px;
   aspect-ratio: 16 / 9;
   overflow: hidden;
   border: 1px solid #2f4358;

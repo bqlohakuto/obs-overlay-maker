@@ -1,6 +1,6 @@
 const test = require('node:test');
 const assert = require('node:assert/strict');
-const { initialState, cloneState, normalizeState, buildObsHtml, removePanel } = require('../app.js');
+const { initialState, cloneState, normalizeState, buildObsHtml, removePanel, fitCanvasSize } = require('../app.js');
 
 test('初期状態と複製は独立している', () => {
   const state = initialState(), copy = cloneState(state);
@@ -13,6 +13,11 @@ test('保存データを安全なキャンバス範囲へ正規化する', () =>
   assert.equal(state.panels[0].width, 320); assert.equal(state.panels[0].height, 120);
   assert.equal(state.panels[0].borderOpacity, 100); assert.equal(state.panels[0].backgroundOpacity, 90);
   assert.equal(state.gameImageOpacity, 100);
+});
+test('キャンバスを表示領域内の16対9サイズへ収める', () => {
+  assert.deepEqual(fitCanvasSize(1200, 500), { width: 500 * 16 / 9, height: 500 });
+  assert.deepEqual(fitCanvasSize(800, 1000), { width: 800, height: 450 });
+  assert.deepEqual(fitCanvasSize(3000, 2000), { width: 1440, height: 810 });
 });
 test('OBS用HTMLはパネルを出力し参照画像を含めない', () => {
   const html = buildObsHtml({ panels: [{ id: 'panel-1', x: 120, y: 240 }], gameImage: 'data:image/png;base64,secret', gameImageName: 'game.png' });

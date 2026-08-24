@@ -8,6 +8,10 @@
   const FRAME_IMAGES = ['cyan', 'japanese-rabbit', 'cyberpunk', 'chinese', 'gothic-rose', 'fantasy', 'japanese-rabbit-red-white', 'steampunk', 'botanical', 'light'].flatMap((name) => [`assets/panel-frame-${name}.png`, `assets/panel-frame-${name}-simple.png`]);
   const initialState = () => ({ panels: [], texts: [], shapes: [], gameImage: null, gameImageName: '', gameImageOpacity: 35 });
   const cloneState = (state) => JSON.parse(JSON.stringify(state));
+  const fitCanvasSize = (availableWidth, availableHeight) => {
+    const width = Math.max(1, Math.min(1440, Number(availableWidth) || 1, (Number(availableHeight) || 1) * 16 / 9));
+    return { width, height: width * 9 / 16 };
+  };
   function removePanel(state, panelId) {
     const next = cloneState(state); next.panels = next.panels.filter((panel) => panel.id !== panelId); return next;
   }
@@ -104,11 +108,11 @@ ${shapes}
 </html>`;
   }
 
-  if (typeof module !== 'undefined' && module.exports) module.exports = { initialState, cloneState, normalizeState, buildObsHtml, removePanel };
+  if (typeof module !== 'undefined' && module.exports) module.exports = { initialState, cloneState, normalizeState, buildObsHtml, removePanel, fitCanvasSize };
   if (!root.document) return;
   const document = root.document;
   const byId = (id) => document.getElementById(id);
-  const canvas = byId('overlayCanvas'), addPanelBtn = byId('addPanelBtn'), addTextBtn = byId('addTextBtn'), addShapeBtn = byId('addShapeBtn');
+  const canvas = byId('overlayCanvas'), canvasWrap = canvas.parentElement, addPanelBtn = byId('addPanelBtn'), addTextBtn = byId('addTextBtn'), addShapeBtn = byId('addShapeBtn');
   const undoBtn = byId('undoBtn'), redoBtn = byId('redoBtn'), saveBtn = byId('saveBtn');
   const loadBtn = byId('loadBtn'), exportBtn = byId('exportBtn'), editorMessage = byId('editorMessage');
   const gameImageInput = byId('gameImageInput'), gameReferenceImage = byId('gameReferenceImage');
@@ -135,6 +139,10 @@ ${shapes}
   const shapeOpacity = byId('shapeOpacity'), shapeOpacityValue = byId('shapeOpacityValue'), shapeWidth = byId('shapeWidth'), shapeHeight = byId('shapeHeight');
   const shapeRotation = byId('shapeRotation'), deleteShapeBtn = byId('deleteShapeBtn'), shapeInputs = [shapeType, shapeColor, shapeOpacity, shapeWidth, shapeHeight, shapeRotation];
   let state = initialState(), past = [], future = [], selectedPanelId = null, selectedTextId = null, selectedShapeId = null;
+
+  function fitCanvasToViewport() {
+    const size = fitCanvasSize(canvasWrap.clientWidth, canvasWrap.clientHeight); canvas.style.width = `${size.width}px`; canvas.style.height = `${size.height}px`;
+  }
 
   const updateHistoryButtons = () => { undoBtn.disabled = !past.length; redoBtn.disabled = !future.length; };
   function commit(nextState) { past.push(cloneState(state)); state = normalizeState(nextState); future = []; render(); }
@@ -413,5 +421,7 @@ ${shapes}
     };
     element.addEventListener('pointerup', stop); element.addEventListener('pointercancel', stop);
   }
-  root.addEventListener('resize', render); render();
+  root.addEventListener('resize', () => { fitCanvasToViewport(); render(); });
+  if (typeof ResizeObserver === 'function') new ResizeObserver(() => { fitCanvasToViewport(); render(); }).observe(canvasWrap);
+  fitCanvasToViewport(); render();
 })(typeof window !== 'undefined' ? window : globalThis);
