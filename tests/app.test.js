@@ -1,6 +1,6 @@
 const test = require('node:test');
 const assert = require('node:assert/strict');
-const { initialState, cloneState, normalizeState, buildObsHtml } = require('../app.js');
+const { initialState, cloneState, normalizeState, buildObsHtml, removePanel } = require('../app.js');
 
 test('初期状態と複製は独立している', () => {
   const state = initialState(), copy = cloneState(state);
@@ -46,6 +46,12 @@ test('文字内容とIDをエスケープし未対応フォントを既定値へ
   assert.equal(state.texts[0].fontFamily, 'system-ui');
   const html = buildObsHtml({ texts: [{ id: '\"><b>', x: 0, y: 0, content: '<script>' }] });
   assert.doesNotMatch(html, /<script>|<b>/); assert.match(html, /&lt;script&gt;/);
+});
+test('選択したパネルだけを削除し他の要素を保持する', () => {
+  const state = { panels: [{ id: 'panel-1' }, { id: 'panel-2' }], texts: [{ id: 'text-1' }] };
+  const next = removePanel(state, 'panel-1');
+  assert.deepEqual(next.panels, [{ id: 'panel-2' }]); assert.deepEqual(next.texts, state.texts);
+  assert.equal(state.panels.length, 2);
 });
 test('OBS用HTMLは属性値をエスケープする', () => {
   const html = buildObsHtml({ panels: [{ id: '\"><script>', x: 0, y: 0 }] });

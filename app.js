@@ -5,6 +5,9 @@
   const TEXT_FONTS = ['system-ui', "'Yu Gothic', 'YuGothic', sans-serif", 'Meiryo, sans-serif', 'Arial, sans-serif', 'Georgia, serif', 'Impact, sans-serif', 'monospace'];
   const initialState = () => ({ panels: [], texts: [], gameImage: null, gameImageName: '', gameImageOpacity: 35 });
   const cloneState = (state) => JSON.parse(JSON.stringify(state));
+  function removePanel(state, panelId) {
+    const next = cloneState(state); next.panels = next.panels.filter((panel) => panel.id !== panelId); return next;
+  }
 
   function normalizeState(value) {
     const state = initialState();
@@ -84,7 +87,7 @@ ${texts}
 </html>`;
   }
 
-  if (typeof module !== 'undefined' && module.exports) module.exports = { initialState, cloneState, normalizeState, buildObsHtml };
+  if (typeof module !== 'undefined' && module.exports) module.exports = { initialState, cloneState, normalizeState, buildObsHtml, removePanel };
   if (!root.document) return;
   const document = root.document;
   const byId = (id) => document.getElementById(id);
@@ -102,6 +105,7 @@ ${texts}
   const panelCornerTopLeft = byId('panelCornerTopLeft'), panelCornerTopRight = byId('panelCornerTopRight');
   const panelCornerBottomLeft = byId('panelCornerBottomLeft'), panelCornerBottomRight = byId('panelCornerBottomRight');
   const panelWidth = byId('panelWidth'), panelHeight = byId('panelHeight');
+  const deletePanelBtn = byId('deletePanelBtn');
   const panelInputs = [panelBorderColor, panelBackgroundColor, panelBorderOpacity, panelBackgroundOpacity, panelBorderStyle, panelCornerTopLeft, panelCornerTopRight, panelCornerBottomLeft, panelCornerBottomRight, panelWidth, panelHeight];
   const textSelectionMessage = byId('textSelectionMessage'), textContent = byId('textContent');
   const textFontFamily = byId('textFontFamily'), textFontSize = byId('textFontSize'), textColor = byId('textColor');
@@ -144,7 +148,7 @@ ${texts}
 
   function updatePanelControls() {
     const panel = state.panels.find((item) => item.id === selectedPanelId);
-    panelInputs.forEach((input) => { input.disabled = !panel; });
+    panelInputs.forEach((input) => { input.disabled = !panel; }); deletePanelBtn.disabled = !panel;
     panelSelectionMessage.textContent = panel ? `${panel.id} を編集中` : '編集するパネルを選択してください';
     if (!panel) return;
     panelBorderColor.value = panel.borderColor; panelBackgroundColor.value = panel.backgroundColor;
@@ -199,6 +203,10 @@ ${texts}
   panelCornerBottomRight.addEventListener('change', () => editSelectedPanel({ cornerBottomRight: panelCornerBottomRight.checked }));
   panelWidth.addEventListener('change', () => editSelectedPanel({ width: Number(panelWidth.value) }));
   panelHeight.addEventListener('change', () => editSelectedPanel({ height: Number(panelHeight.value) }));
+  deletePanelBtn.addEventListener('click', () => {
+    if (!selectedPanelId) return; const next = removePanel(state, selectedPanelId); selectedPanelId = null; commit(next);
+    editorMessage.textContent = 'パネルを削除しました。';
+  });
   textContent.addEventListener('input', () => editSelectedText({ content: textContent.value }));
   textFontFamily.addEventListener('change', () => editSelectedText({ fontFamily: textFontFamily.value }));
   textFontSize.addEventListener('change', () => editSelectedText({ fontSize: Number(textFontSize.value) }));
