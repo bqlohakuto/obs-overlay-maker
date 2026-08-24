@@ -1,5 +1,6 @@
 (function (root) {
   const STORAGE_KEY = 'obs-overlay-maker-state-v1';
+  const PUBLIC_ASSET_BASE = 'https://bqlohakuto.github.io/obs-overlay-maker/';
   const WIDTH = 1920, HEIGHT = 1080, PANEL_W = 320, PANEL_H = 120;
   const PANEL_DEFAULTS = { width: PANEL_W, height: PANEL_H, borderColor: '#65e6ff', backgroundColor: '#142a42', borderOpacity: 100, backgroundOpacity: 90, borderStyle: 'solid', cornerTopLeft: true, cornerTopRight: true, cornerBottomLeft: true, cornerBottomRight: true };
   const TEXT_FONTS = ['system-ui', "'Yu Gothic', 'YuGothic', sans-serif", 'Meiryo, sans-serif', 'Arial, sans-serif', 'Georgia, serif', 'Impact, sans-serif', 'monospace'];
@@ -312,15 +313,19 @@ ${shapes}
     const output = document.createElement('canvas'); output.width = image.naturalWidth; output.height = image.naturalHeight;
     output.getContext('2d').drawImage(image, 0, 0); return output.toDataURL('image/png');
   };
+  const fetchAsDataUrl = async (url) => {
+    const response = await fetch(url, { cache: 'force-cache' }); if (!response.ok) throw new Error(`HTTP ${response.status}`); const blob = await response.blob();
+    return new Promise((resolve, reject) => { const reader = new FileReader(); reader.addEventListener('load', () => resolve(reader.result)); reader.addEventListener('error', reject); reader.readAsDataURL(blob); });
+  };
   const frameToDataUrl = async (path) => {
     const visibleImage = [...canvas.querySelectorAll('.panel-frame-image')].find((image) => image.getAttribute('src') === path && image.complete && image.naturalWidth);
     if (visibleImage) { try { return imageElementToDataUrl(visibleImage); } catch (error) { /* 通信取得へフォールバック */ } }
     try {
-      const response = await fetch(new URL(path, document.baseURI), { cache: 'force-cache' }); if (!response.ok) throw new Error(`HTTP ${response.status}`); const blob = await response.blob();
-      return await new Promise((resolve, reject) => { const reader = new FileReader(); reader.addEventListener('load', () => resolve(reader.result)); reader.addEventListener('error', reject); reader.readAsDataURL(blob); });
-    } catch (fetchError) {
+      return await fetchAsDataUrl(new URL(path, document.baseURI));
+    } catch (localFetchError) {
+      try { return await fetchAsDataUrl(new URL(path, PUBLIC_ASSET_BASE)); } catch (publicFetchError) { /* 画像要素で最終試行 */ }
       const image = new Image(); image.crossOrigin = 'anonymous';
-      await new Promise((resolve, reject) => { image.addEventListener('load', resolve, { once: true }); image.addEventListener('error', reject, { once: true }); image.src = new URL(path, document.baseURI).href; });
+      await new Promise((resolve, reject) => { image.addEventListener('load', resolve, { once: true }); image.addEventListener('error', reject, { once: true }); image.src = new URL(path, PUBLIC_ASSET_BASE).href; });
       return imageElementToDataUrl(image);
     }
   };
