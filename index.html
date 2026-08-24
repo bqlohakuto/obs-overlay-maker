@@ -21,6 +21,24 @@
         <button type="button" disabled>＋ 時計追加</button>
       </div>
 
+      <section class="reference-controls" aria-labelledby="referenceTitle">
+        <div>
+          <p class="eyebrow">REFERENCE</p>
+          <h2 id="referenceTitle">ゲーム画面</h2>
+        </div>
+        <label class="file-picker" for="gameImageInput">スクショを選択</label>
+        <input id="gameImageInput" type="file" accept="image/png,image/jpeg,image/webp,image/gif" />
+        <p id="gameImageName" class="image-name">画像は選択されていません</p>
+        <label class="opacity-control" for="gameImageOpacity">
+          <span>表示透明度</span>
+          <output id="gameImageOpacityValue" for="gameImageOpacity">35%</output>
+        </label>
+        <input id="gameImageOpacity" type="range" min="0" max="100" value="35" />
+        <button id="removeGameImageBtn" class="secondary-button" type="button" disabled>画像を外す</button>
+        <p id="gameImageMessage" class="control-message" role="status"></p>
+        <small class="muted">レイアウト確認専用です。オーバーレイには含まれません。</small>
+      </section>
+
       <div class="status-card">
         <span>現在の段階</span>
         <strong>MVP Step 1</strong>
@@ -38,7 +56,9 @@
       </header>
 
       <section class="canvas-wrap">
-        <div id="overlayCanvas" class="overlay-canvas" aria-label="OBS overlay canvas"></div>
+        <div id="overlayCanvas" class="overlay-canvas" aria-label="OBS overlay canvas">
+          <img id="gameReferenceImage" class="game-reference-image" alt="ゲーム画面の参照画像" hidden />
+        </div>
       </section>
     </main>
   </div>

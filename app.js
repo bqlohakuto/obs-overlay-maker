@@ -1,7 +1,54 @@
 const canvas = document.getElementById('overlayCanvas');
 const addPanelBtn = document.getElementById('addPanelBtn');
+const gameImageInput = document.getElementById('gameImageInput');
+const gameReferenceImage = document.getElementById('gameReferenceImage');
+const gameImageName = document.getElementById('gameImageName');
+const gameImageOpacity = document.getElementById('gameImageOpacity');
+const gameImageOpacityValue = document.getElementById('gameImageOpacityValue');
+const removeGameImageBtn = document.getElementById('removeGameImageBtn');
+const gameImageMessage = document.getElementById('gameImageMessage');
 
 let panelCount = 0;
+
+gameImageInput.addEventListener('change', () => {
+  const [file] = gameImageInput.files;
+  gameImageMessage.textContent = '';
+
+  if (!file) return;
+  if (!file.type.startsWith('image/')) {
+    gameImageInput.value = '';
+    gameImageMessage.textContent = '画像ファイルを選択してください。';
+    return;
+  }
+
+  const reader = new FileReader();
+  reader.addEventListener('load', () => {
+    gameReferenceImage.src = reader.result;
+    gameReferenceImage.hidden = false;
+    gameImageName.textContent = file.name;
+    removeGameImageBtn.disabled = false;
+  });
+  reader.addEventListener('error', () => {
+    gameImageMessage.textContent = '画像を読み込めませんでした。';
+  });
+  reader.readAsDataURL(file);
+});
+
+gameImageOpacity.addEventListener('input', () => {
+  const opacity = Number(gameImageOpacity.value);
+  gameReferenceImage.style.opacity = String(opacity / 100);
+  gameImageOpacityValue.value = `${opacity}%`;
+  gameImageOpacityValue.textContent = `${opacity}%`;
+});
+
+removeGameImageBtn.addEventListener('click', () => {
+  gameReferenceImage.removeAttribute('src');
+  gameReferenceImage.hidden = true;
+  gameImageInput.value = '';
+  gameImageName.textContent = '画像は選択されていません';
+  gameImageMessage.textContent = '';
+  removeGameImageBtn.disabled = true;
+});
 
 addPanelBtn.addEventListener('click', () => {
   panelCount += 1;

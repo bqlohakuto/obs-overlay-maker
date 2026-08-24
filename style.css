@@ -56,6 +56,59 @@ h1, h2, p { margin-top: 0; }
   cursor: pointer;
 }
 
+.reference-controls {
+  display: grid;
+  gap: 10px;
+  padding-top: 22px;
+  border-top: 1px solid #223042;
+}
+
+.reference-controls h2 {
+  margin-bottom: 0;
+  font-size: 18px;
+}
+
+#gameImageInput {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+}
+
+.file-picker,
+.secondary-button {
+  padding: 11px 13px;
+  border: 1px solid #2a465e;
+  border-radius: 10px;
+  background: #142638;
+  color: #f4fbff;
+  cursor: pointer;
+  text-align: center;
+}
+
+.secondary-button:disabled {
+  opacity: .45;
+  cursor: not-allowed;
+}
+
+.image-name,
+.control-message {
+  margin: 0;
+  color: #8fa1b5;
+  font-size: 13px;
+  overflow-wrap: anywhere;
+}
+
+.control-message:not(:empty) { color: #ffb978; }
+
+.opacity-control {
+  display: flex;
+  justify-content: space-between;
+  color: #c5d4e5;
+  font-size: 14px;
+}
+
 .tool-group button:hover:not(:disabled) {
   border-color: #65e6ff;
 }
@@ -115,6 +168,20 @@ h1, h2, p { margin-top: 0; }
   touch-action: none;
 }
 
+.game-reference-image {
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  opacity: .35;
+  pointer-events: none;
+  user-select: none;
+}
+
+.game-reference-image[hidden] { display: none; }
+
 .overlay-panel {
   position: absolute;
   width: 320px;
@@ -126,6 +193,7 @@ h1, h2, p { margin-top: 0; }
   user-select: none;
   touch-action: none;
   box-shadow: 0 0 20px rgba(101, 230, 255, .12);
+  z-index: 1;
 }
 
 .overlay-panel:active { cursor: grabbing; }
