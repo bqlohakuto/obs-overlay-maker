@@ -9,7 +9,7 @@
   const ANIMATIONS = ['pulse', 'shake', 'flash'];
   const initialState = () => ({
     panels: [], texts: [], shapes: [], gameImage: null, gameImageName: '', gameImageOpacity: 35,
-    gameLink: { enabled: true, code: '', key: '', animation: 'pulse' }
+    gameLink: { enabled: true, code: '', key: '', keyCode: 0, animation: 'pulse' }
   });
   const cloneState = (state) => JSON.parse(JSON.stringify(state));
   const fitCanvasSize = (availableWidth, availableHeight) => {
@@ -69,6 +69,7 @@
       state.gameLink.enabled = value.gameLink.enabled !== false;
       state.gameLink.code = typeof value.gameLink.code === 'string' ? value.gameLink.code : '';
       state.gameLink.key = typeof value.gameLink.key === 'string' ? value.gameLink.key : '';
+      state.gameLink.keyCode = Math.max(0, Math.min(255, Number(value.gameLink.keyCode) || 0));
       state.gameLink.animation = ANIMATIONS.includes(value.gameLink.animation) ? value.gameLink.animation : 'pulse';
     }
     return state;
@@ -78,7 +79,8 @@
     if (!gameLink || !gameLink.enabled || !event || event.repeat) return false;
     const codeMatches = Boolean(gameLink.code && event.code && event.code === gameLink.code);
     const keyMatches = Boolean(gameLink.key && event.key && String(event.key).toLocaleLowerCase() === String(gameLink.key).toLocaleLowerCase());
-    return codeMatches || keyMatches;
+    const keyCodeMatches = Boolean(gameLink.keyCode && (event.keyCode || event.which) === gameLink.keyCode);
+    return codeMatches || keyMatches || keyCodeMatches;
   }
 
   const escapeHtml = (value) => String(value).replace(/[&<>"']/g, (character) => ({
@@ -136,7 +138,8 @@ ${shapes}
         if (!config.enabled || event.repeat) return false;
         const byCode = config.code && event.code && event.code === config.code;
         const byKey = config.key && event.key && String(event.key).toLocaleLowerCase() === String(config.key).toLocaleLowerCase();
-        return Boolean(byCode || byKey);
+        const byKeyCode = config.keyCode && (event.keyCode || event.which) === config.keyCode;
+        return Boolean(byCode || byKey || byKeyCode);
       };
       window.addEventListener('keydown', (event) => { if (matchesKey(event)) fire(); });
       window.OBSOverlay = { emit: (event) => { if (event && event.type === 'overlay.trigger') fire(); } };
@@ -294,7 +297,7 @@ ${shapes}
     if (isCapturingKey) {
       event.preventDefault(); isCapturingKey = false; captureKeyBtn.textContent = 'キーを設定';
       if (event.code === 'Escape') { gameLinkMessage.textContent = 'キー設定をキャンセルしました。'; return; }
-      const next = cloneState(state); next.gameLink.code = event.code; next.gameLink.key = event.key; commit(next);
+      const next = cloneState(state); next.gameLink.code = event.code; next.gameLink.key = event.key; next.gameLink.keyCode = event.keyCode || event.which || 0; commit(next);
       gameLinkMessage.textContent = `${event.key} をトリガーに設定しました。`; return;
     }
     if (matchesKeyboardEvent(state.gameLink, event)) emitOverlayEvent({ type: 'overlay.trigger', source: 'keyboard', code: event.code });

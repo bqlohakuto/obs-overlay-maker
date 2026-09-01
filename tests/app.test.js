@@ -9,13 +9,14 @@ test('初期状態と複製は独立している', () => {
 });
 test('ゲーム連動設定を正規化する', () => {
   const state = normalizeState({ gameLink: { enabled: false, code: 'KeyK', key: 'k', animation: 'shake' } });
-  assert.deepEqual(state.gameLink, { enabled: false, code: 'KeyK', key: 'k', animation: 'shake' });
+  assert.deepEqual(state.gameLink, { enabled: false, code: 'KeyK', key: 'k', keyCode: 0, animation: 'shake' });
   assert.equal(normalizeState({ gameLink: { animation: 'unknown' } }).gameLink.animation, 'pulse');
 });
 test('設定キーの初回keydownだけをトリガーとして扱う', () => {
-  const link = { enabled: true, code: 'KeyK', key: 'k' };
+  const link = { enabled: true, code: 'KeyK', key: 'k', keyCode: 75 };
   assert.equal(matchesKeyboardEvent(link, { code: 'KeyK', repeat: false }), true);
   assert.equal(matchesKeyboardEvent(link, { code: '', key: 'K', repeat: false }), true);
+  assert.equal(matchesKeyboardEvent(link, { code: '', key: '', keyCode: 75, repeat: false }), true);
   assert.equal(matchesKeyboardEvent(link, { code: '', key: 'j', repeat: false }), false);
   assert.equal(matchesKeyboardEvent(link, { code: 'KeyK', repeat: true }), false);
   assert.equal(matchesKeyboardEvent({ ...link, enabled: false }, { code: 'KeyK' }), false);
