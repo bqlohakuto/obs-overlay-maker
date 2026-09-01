@@ -110,6 +110,11 @@ h1, h2, p { margin-top: 0; }
 .game-link-controls button { width: 100%; }
 .toggle-control { display: flex; align-items: center; gap: 9px; }
 .key-display { margin: 0; color: #8fa1b5; font-size: 13px; }
+.bridge-download {
+  display: block; padding: 11px 13px; border: 1px solid #2a465e; border-radius: 10px;
+  background: #142638; color: #f4fbff; text-align: center; text-decoration: none;
+}
+.bridge-download:hover { border-color: #65e6ff; }
 kbd { padding: 3px 7px; border: 1px solid #3b566e; border-radius: 5px; background: #09111a; color: #65e6ff; }
 
 .button-row { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }

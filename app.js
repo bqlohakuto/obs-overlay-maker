@@ -142,6 +142,18 @@ ${shapes}
         return Boolean(byCode || byKey || byKeyCode);
       };
       window.addEventListener('keydown', (event) => { if (matchesKey(event)) fire(); });
+      let bridge;
+      const connectBridge = () => {
+        try {
+          bridge = new WebSocket('ws://127.0.0.1:16888');
+          bridge.addEventListener('message', (message) => {
+            try { const event = JSON.parse(message.data); if (event.type === 'overlay.trigger') fire(); } catch (error) { /* ignore malformed bridge messages */ }
+          });
+          bridge.addEventListener('close', () => setTimeout(connectBridge, 2000));
+          bridge.addEventListener('error', () => bridge.close());
+        } catch (error) { setTimeout(connectBridge, 2000); }
+      };
+      connectBridge();
       window.OBSOverlay = { emit: (event) => { if (event && event.type === 'overlay.trigger') fire(); } };
     })();
   <\/script>
