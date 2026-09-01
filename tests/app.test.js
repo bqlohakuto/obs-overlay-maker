@@ -1,11 +1,22 @@
 const test = require('node:test');
 const assert = require('node:assert/strict');
-const { initialState, cloneState, normalizeState, buildObsHtml, removePanel, fitCanvasSize } = require('../app.js');
+const { initialState, cloneState, normalizeState, matchesKeyboardEvent, buildObsHtml, removePanel, fitCanvasSize } = require('../app.js');
 
 test('初期状態と複製は独立している', () => {
   const state = initialState(), copy = cloneState(state);
   copy.panels.push({ id: 'panel-1', x: 10, y: 20 });
   assert.equal(state.panels.length, 0); assert.equal(copy.gameImageOpacity, 35);
+});
+test('ゲーム連動設定を正規化する', () => {
+  const state = normalizeState({ gameLink: { enabled: false, code: 'KeyK', key: 'k', animation: 'shake' } });
+  assert.deepEqual(state.gameLink, { enabled: false, code: 'KeyK', key: 'k', animation: 'shake' });
+  assert.equal(normalizeState({ gameLink: { animation: 'unknown' } }).gameLink.animation, 'pulse');
+});
+test('設定キーの初回keydownだけをトリガーとして扱う', () => {
+  const link = { enabled: true, code: 'KeyK' };
+  assert.equal(matchesKeyboardEvent(link, { code: 'KeyK', repeat: false }), true);
+  assert.equal(matchesKeyboardEvent(link, { code: 'KeyK', repeat: true }), false);
+  assert.equal(matchesKeyboardEvent({ ...link, enabled: false }, { code: 'KeyK' }), false);
 });
 test('保存データを安全なキャンバス範囲へ正規化する', () => {
   const state = normalizeState({ panels: [{ id: 'p', x: -20, y: 5000 }], gameImageOpacity: 150 });
@@ -50,7 +61,7 @@ test('文字内容とIDをエスケープし未対応フォントを既定値へ
   const state = normalizeState({ texts: [{ id: 'x', x: 0, y: 0, content: '<script>', fontFamily: 'unsafe-font' }] });
   assert.equal(state.texts[0].fontFamily, 'system-ui');
   const html = buildObsHtml({ texts: [{ id: '\"><b>', x: 0, y: 0, content: '<script>' }] });
-  assert.doesNotMatch(html, /<script>|<b>/); assert.match(html, /&lt;script&gt;/);
+  assert.doesNotMatch(html, /data-text-id="[^"]*<b>|class="overlay-text"[^>]*><script>/); assert.match(html, /&lt;script&gt;/);
 });
 test('選択したパネルだけを削除し他の要素を保持する', () => {
   const state = { panels: [{ id: 'panel-1' }, { id: 'panel-2' }], texts: [{ id: 'text-1' }] };
@@ -80,7 +91,11 @@ test('未登録のパネル枠画像を読み込まない', () => {
   const panel = normalizeState({ panels: [{ id: 'p', x: 0, y: 0, frameImage: 'javascript:alert(1)' }] }).panels[0];
   assert.equal(panel.frameImage, '');
 });
+test('OBS用HTMLへゲーム連動設定とイベント入口を含める', () => {
+  const html = buildObsHtml({ panels: [], gameLink: { enabled: true, code: 'Space', key: ' ', animation: 'flash' } });
+  assert.match(html, /"code":"Space"/); assert.match(html, /run-flash/); assert.match(html, /overlay\.trigger/);
+});
 test('OBS用HTMLは属性値をエスケープする', () => {
   const html = buildObsHtml({ panels: [{ id: '\"><script>', x: 0, y: 0 }] });
-  assert.doesNotMatch(html, /<script>/); assert.match(html, /&quot;&gt;&lt;script&gt;/);
+  assert.doesNotMatch(html, /data-panel-id="[^"]*<script>/); assert.match(html, /&quot;&gt;&lt;script&gt;/);
 });

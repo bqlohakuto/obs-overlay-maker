@@ -6,7 +6,11 @@
   const TEXT_FONTS = ['system-ui', "'Yu Gothic', 'YuGothic', sans-serif", 'Meiryo, sans-serif', 'Arial, sans-serif', 'Georgia, serif', 'Impact, sans-serif', 'monospace'];
   const SHAPE_TYPES = ['star', 'heart', 'diamond', 'circle', 'triangle'];
   const FRAME_IMAGES = ['cyan', 'japanese-rabbit', 'cyberpunk', 'chinese', 'gothic-rose', 'fantasy', 'japanese-rabbit-red-white', 'steampunk', 'botanical', 'light'].flatMap((name) => [`assets/panel-frame-${name}.png`, `assets/panel-frame-${name}-simple.png`]);
-  const initialState = () => ({ panels: [], texts: [], shapes: [], gameImage: null, gameImageName: '', gameImageOpacity: 35 });
+  const ANIMATIONS = ['pulse', 'shake', 'flash'];
+  const initialState = () => ({
+    panels: [], texts: [], shapes: [], gameImage: null, gameImageName: '', gameImageOpacity: 35,
+    gameLink: { enabled: true, code: '', key: '', animation: 'pulse' }
+  });
   const cloneState = (state) => JSON.parse(JSON.stringify(state));
   const fitCanvasSize = (availableWidth, availableHeight) => {
     const width = Math.max(1, Math.min(1440, Number(availableWidth) || 1, (Number(availableHeight) || 1) * 16 / 9));
@@ -61,7 +65,17 @@
     state.gameImage = typeof value.gameImage === 'string' ? value.gameImage : null;
     state.gameImageName = typeof value.gameImageName === 'string' ? value.gameImageName : '';
     state.gameImageOpacity = Math.max(0, Math.min(100, Number(value.gameImageOpacity) || 0));
+    if (value.gameLink && typeof value.gameLink === 'object') {
+      state.gameLink.enabled = value.gameLink.enabled !== false;
+      state.gameLink.code = typeof value.gameLink.code === 'string' ? value.gameLink.code : '';
+      state.gameLink.key = typeof value.gameLink.key === 'string' ? value.gameLink.key : '';
+      state.gameLink.animation = ANIMATIONS.includes(value.gameLink.animation) ? value.gameLink.animation : 'pulse';
+    }
     return state;
+  }
+
+  function matchesKeyboardEvent(gameLink, event) {
+    return Boolean(gameLink && gameLink.enabled && gameLink.code && event && event.code === gameLink.code && !event.repeat);
   }
 
   const escapeHtml = (value) => String(value).replace(/[&<>"']/g, (character) => ({
@@ -96,6 +110,10 @@
     .panel-frame-image{position:absolute;inset:0;width:100%;height:100%;pointer-events:none}
     .overlay-text{position:absolute;min-width:80px;max-width:1920px;white-space:pre-wrap;overflow-wrap:anywhere;line-height:1.2}
     .overlay-shape{position:absolute}
+    .run-pulse{animation:pulse .65s ease-out}.run-shake{animation:shake .5s ease-in-out}.run-flash{animation:flash .65s ease-out}
+    @keyframes pulse{0%{transform:scale(1)}35%{transform:scale(1.12);filter:brightness(1.8)}100%{transform:scale(1)}}
+    @keyframes shake{0%,100%{transform:translateX(0)}20%{transform:translateX(-18px)}40%{transform:translateX(15px)}60%{transform:translateX(-10px)}80%{transform:translateX(6px)}}
+    @keyframes flash{0%{filter:brightness(1)}25%{filter:brightness(2.8);box-shadow:0 0 55px rgba(101,230,255,.95)}100%{filter:brightness(1)}}
   </style>
 </head>
 <body>
@@ -104,11 +122,22 @@ ${panels}
 ${texts}
 ${shapes}
   </div>
+  <script>
+    (() => {
+      const config = ${JSON.stringify(normalized.gameLink).replace(/</g, '\\u003c')};
+      const fire = () => document.querySelectorAll('.overlay-panel').forEach((panel) => {
+        const name = 'run-' + config.animation; panel.classList.remove(name); void panel.offsetWidth;
+        panel.classList.add(name); panel.addEventListener('animationend', () => panel.classList.remove(name), { once: true });
+      });
+      window.addEventListener('keydown', (event) => { if (config.enabled && config.code && event.code === config.code && !event.repeat) fire(); });
+      window.OBSOverlay = { emit: (event) => { if (event && event.type === 'overlay.trigger') fire(); } };
+    })();
+  <\/script>
 </body>
 </html>`;
   }
 
-  if (typeof module !== 'undefined' && module.exports) module.exports = { initialState, cloneState, normalizeState, buildObsHtml, removePanel, fitCanvasSize };
+  if (typeof module !== 'undefined' && module.exports) module.exports = { initialState, cloneState, normalizeState, matchesKeyboardEvent, buildObsHtml, removePanel, fitCanvasSize };
   if (!root.document) return;
   const document = root.document;
   const byId = (id) => document.getElementById(id);
@@ -138,7 +167,11 @@ ${shapes}
   const shapeSelectionMessage = byId('shapeSelectionMessage'), shapeType = byId('shapeType'), shapeColor = byId('shapeColor');
   const shapeOpacity = byId('shapeOpacity'), shapeOpacityValue = byId('shapeOpacityValue'), shapeWidth = byId('shapeWidth'), shapeHeight = byId('shapeHeight');
   const shapeRotation = byId('shapeRotation'), deleteShapeBtn = byId('deleteShapeBtn'), shapeInputs = [shapeType, shapeColor, shapeOpacity, shapeWidth, shapeHeight, shapeRotation];
+  const gameLinkEnabled = byId('gameLinkEnabled'), animationSelect = byId('animationSelect');
+  const captureKeyBtn = byId('captureKeyBtn'), selectedKey = byId('selectedKey');
+  const testTriggerBtn = byId('testTriggerBtn'), gameLinkMessage = byId('gameLinkMessage');
   let state = initialState(), past = [], future = [], selectedPanelId = null, selectedTextId = null, selectedShapeId = null;
+  let isCapturingKey = false;
 
   function fitCanvasToViewport() {
     const size = fitCanvasSize(canvasWrap.clientWidth, canvasWrap.clientHeight); canvas.style.width = `${size.width}px`; canvas.style.height = `${size.height}px`;
@@ -186,6 +219,8 @@ ${shapes}
     gameImageOpacity.value = String(state.gameImageOpacity);
     gameImageOpacityValue.value = `${state.gameImageOpacity}%`; gameImageOpacityValue.textContent = `${state.gameImageOpacity}%`;
     removeGameImageBtn.disabled = !state.gameImage; updatePanelControls(); updateTextControls(); updateShapeControls(); updateHistoryButtons();
+    gameLinkEnabled.checked = state.gameLink.enabled; animationSelect.value = state.gameLink.animation;
+    selectedKey.textContent = state.gameLink.key || state.gameLink.code || '未設定';
   }
 
   function updatePanelControls() {
@@ -232,6 +267,29 @@ ${shapes}
     shapeWidth.value = String(shape.width); shapeHeight.value = String(shape.height); shapeRotation.value = String(shape.rotation);
   }
   function editSelectedShape(changes) { if (!selectedShapeId) return; const next = cloneState(state), target = next.shapes.find((item) => item.id === selectedShapeId); if (!target) return; Object.assign(target, changes); commit(next); }
+
+  function emitOverlayEvent(event) {
+    if (!event || event.type !== 'overlay.trigger') return;
+    canvas.querySelectorAll('.overlay-panel').forEach((panel) => {
+      const className = `is-animating-${state.gameLink.animation}`;
+      panel.classList.remove(className); void panel.offsetWidth; panel.classList.add(className);
+      panel.addEventListener('animationend', () => panel.classList.remove(className), { once: true });
+    });
+  }
+
+  gameLinkEnabled.addEventListener('change', () => { const next = cloneState(state); next.gameLink.enabled = gameLinkEnabled.checked; commit(next); });
+  animationSelect.addEventListener('change', () => { const next = cloneState(state); next.gameLink.animation = animationSelect.value; commit(next); });
+  captureKeyBtn.addEventListener('click', () => { isCapturingKey = true; captureKeyBtn.textContent = 'キーを押してください…'; gameLinkMessage.textContent = 'Escでキャンセルできます。'; });
+  testTriggerBtn.addEventListener('click', () => emitOverlayEvent({ type: 'overlay.trigger', source: 'manual' }));
+  root.addEventListener('keydown', (event) => {
+    if (isCapturingKey) {
+      event.preventDefault(); isCapturingKey = false; captureKeyBtn.textContent = 'キーを設定';
+      if (event.code === 'Escape') { gameLinkMessage.textContent = 'キー設定をキャンセルしました。'; return; }
+      const next = cloneState(state); next.gameLink.code = event.code; next.gameLink.key = event.key; commit(next);
+      gameLinkMessage.textContent = `${event.key} をトリガーに設定しました。`; return;
+    }
+    if (matchesKeyboardEvent(state.gameLink, event)) emitOverlayEvent({ type: 'overlay.trigger', source: 'keyboard', code: event.code });
+  });
 
   addPanelBtn.addEventListener('click', () => {
     const next = cloneState(state);

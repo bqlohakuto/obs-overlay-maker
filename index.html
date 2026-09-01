@@ -152,6 +152,28 @@
         <p id="editorMessage" class="control-message" role="status"></p>
       </section>
 
+      <section class="game-link-controls" aria-labelledby="gameLinkTitle">
+        <div>
+          <p class="eyebrow">GAME LINK</p>
+          <h2 id="gameLinkTitle">キー連動</h2>
+        </div>
+        <label class="toggle-control">
+          <input id="gameLinkEnabled" type="checkbox" checked />
+          <span>キー入力で演出を発火</span>
+        </label>
+        <label for="animationSelect">アニメーション</label>
+        <select id="animationSelect">
+          <option value="pulse">パルス</option>
+          <option value="shake">シェイク</option>
+          <option value="flash">フラッシュ</option>
+        </select>
+        <button id="captureKeyBtn" class="secondary-button" type="button">キーを設定</button>
+        <p class="key-display">現在のキー: <kbd id="selectedKey">未設定</kbd></p>
+        <button id="testTriggerBtn" type="button">演出をテスト</button>
+        <p id="gameLinkMessage" class="control-message" role="status"></p>
+        <small class="muted">キー検知にはプレビューまたはOBSの「対話」を選んでフォーカスしてください。</small>
+      </section>
+
       <section class="reference-controls" aria-labelledby="referenceTitle">
         <div>
           <p class="eyebrow">REFERENCE</p>
@@ -172,8 +194,8 @@
 
       <div class="status-card">
         <span>現在の段階</span>
-        <strong>MVP Editor</strong>
-        <small>編集・保存・OBS用HTML出力</small>
+        <strong>Game Link MVP</strong>
+        <small>キー入力・プレビュー・OBS用HTML出力</small>
       </div>
     </aside>
 
