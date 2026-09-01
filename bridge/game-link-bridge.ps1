@@ -180,7 +180,7 @@ public sealed class GameLinkBridgeForm : Form
     private static bool MatchesPattern(Bitmap image, Rectangle area, PixelMatch match, string expected)
     {
         const int columns = 52, rows = 18;
-        int intersection = 0, union = 0;
+        bool[] actualGrid = new bool[columns * rows];
         for (int row = 0; row < rows; row++) {
             for (int column = 0; column < columns; column++) {
                 int left = area.Left + area.Width * column / columns, right = area.Left + area.Width * (column + 1) / columns;
@@ -188,13 +188,26 @@ public sealed class GameLinkBridgeForm : Form
                 int matching = 0, sampled = 0;
                 for (int y = top; y < bottom; y += 2)
                     for (int x = left; x < right; x += 2) { if (match(image.GetPixel(x, y))) matching++; sampled++; }
-                bool actual = sampled > 0 && (double)matching / sampled > .12;
-                bool reference = expected[row * columns + column] == '1';
-                if (actual && reference) intersection++;
-                if (actual || reference) union++;
+                actualGrid[row * columns + column] = sampled > 0 && (double)matching / sampled > .09;
             }
         }
-        return union > 0 && (double)intersection / union >= .48;
+        double best = 0;
+        for (int shiftY = -3; shiftY <= 3; shiftY++) {
+            for (int shiftX = -5; shiftX <= 5; shiftX++) {
+                int intersection = 0, union = 0;
+                for (int row = 0; row < rows; row++) {
+                    for (int column = 0; column < columns; column++) {
+                        int actualX = column + shiftX, actualY = row + shiftY;
+                        bool actual = actualX >= 0 && actualX < columns && actualY >= 0 && actualY < rows && actualGrid[actualY * columns + actualX];
+                        bool reference = expected[row * columns + column] == '1';
+                        if (actual && reference) intersection++;
+                        if (actual || reference) union++;
+                    }
+                }
+                if (union > 0) best = Math.Max(best, (double)intersection / union);
+            }
+        }
+        return best >= .30;
     }
 
     private static int CountPixels(Bitmap image, Rectangle area, PixelMatch match, int step)
