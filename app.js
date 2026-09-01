@@ -75,7 +75,10 @@
   }
 
   function matchesKeyboardEvent(gameLink, event) {
-    return Boolean(gameLink && gameLink.enabled && gameLink.code && event && event.code === gameLink.code && !event.repeat);
+    if (!gameLink || !gameLink.enabled || !event || event.repeat) return false;
+    const codeMatches = Boolean(gameLink.code && event.code && event.code === gameLink.code);
+    const keyMatches = Boolean(gameLink.key && event.key && String(event.key).toLocaleLowerCase() === String(gameLink.key).toLocaleLowerCase());
+    return codeMatches || keyMatches;
   }
 
   const escapeHtml = (value) => String(value).replace(/[&<>"']/g, (character) => ({
@@ -129,7 +132,13 @@ ${shapes}
         const name = 'run-' + config.animation; panel.classList.remove(name); void panel.offsetWidth;
         panel.classList.add(name); panel.addEventListener('animationend', () => panel.classList.remove(name), { once: true });
       });
-      window.addEventListener('keydown', (event) => { if (config.enabled && config.code && event.code === config.code && !event.repeat) fire(); });
+      const matchesKey = (event) => {
+        if (!config.enabled || event.repeat) return false;
+        const byCode = config.code && event.code && event.code === config.code;
+        const byKey = config.key && event.key && String(event.key).toLocaleLowerCase() === String(config.key).toLocaleLowerCase();
+        return Boolean(byCode || byKey);
+      };
+      window.addEventListener('keydown', (event) => { if (matchesKey(event)) fire(); });
       window.OBSOverlay = { emit: (event) => { if (event && event.type === 'overlay.trigger') fire(); } };
     })();
   <\/script>

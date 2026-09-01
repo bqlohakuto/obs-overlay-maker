@@ -13,8 +13,10 @@ test('ゲーム連動設定を正規化する', () => {
   assert.equal(normalizeState({ gameLink: { animation: 'unknown' } }).gameLink.animation, 'pulse');
 });
 test('設定キーの初回keydownだけをトリガーとして扱う', () => {
-  const link = { enabled: true, code: 'KeyK' };
+  const link = { enabled: true, code: 'KeyK', key: 'k' };
   assert.equal(matchesKeyboardEvent(link, { code: 'KeyK', repeat: false }), true);
+  assert.equal(matchesKeyboardEvent(link, { code: '', key: 'K', repeat: false }), true);
+  assert.equal(matchesKeyboardEvent(link, { code: '', key: 'j', repeat: false }), false);
   assert.equal(matchesKeyboardEvent(link, { code: 'KeyK', repeat: true }), false);
   assert.equal(matchesKeyboardEvent({ ...link, enabled: false }, { code: 'KeyK' }), false);
 });
