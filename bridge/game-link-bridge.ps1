@@ -35,6 +35,7 @@ public sealed class GameLinkBridgeForm : Form
     private readonly Label keyLabel = new Label();
     private readonly Label statusLabel = new Label();
     private readonly Button captureButton = new Button();
+    private readonly Button resetButton = new Button();
     private bool captureNext;
     private int triggerKey;
     private bool triggerKeyDown;
@@ -49,7 +50,7 @@ public sealed class GameLinkBridgeForm : Form
     public GameLinkBridgeForm()
     {
         Text = "OBS Game Link Bridge";
-        ClientSize = new Size(430, 230);
+        ClientSize = new Size(430, 260);
         FormBorderStyle = FormBorderStyle.FixedDialog;
         MaximizeBox = false;
         StartPosition = FormStartPosition.CenterScreen;
@@ -65,9 +66,13 @@ public sealed class GameLinkBridgeForm : Form
         captureButton.Click += delegate { captureNext = true; captureButton.Text = "Press a key..."; };
         statusLabel.Text = "Connected overlays: 0";
         statusLabel.AutoSize = true;
+        resetButton.Text = "Reset WIN / LOSS";
+        resetButton.Size = new Size(180, 40);
+        resetButton.Location = new Point(195, 108);
+        resetButton.Click += delegate { Broadcast("counters.reset"); };
         statusLabel.Location = new Point(26, 174);
-        var note = new Label { Text = "Keep this window open while using OBS.", AutoSize = true, ForeColor = Color.DimGray, Location = new Point(195, 120) };
-        Controls.AddRange(new Control[] { title, keyLabel, captureButton, statusLabel, note });
+        var note = new Label { Text = "Keep this window open while using OBS.", AutoSize = true, ForeColor = Color.DimGray, Location = new Point(26, 214) };
+        Controls.AddRange(new Control[] { title, keyLabel, captureButton, resetButton, statusLabel, note });
 
         hookProc = KeyboardHook;
         hook = SetHook(hookProc);
