@@ -115,6 +115,7 @@
     .panel-frame-image{position:absolute;inset:0;width:100%;height:100%;pointer-events:none}
     .overlay-text{position:absolute;min-width:80px;max-width:1920px;white-space:pre-wrap;overflow-wrap:anywhere;line-height:1.2}
     .overlay-shape{position:absolute}
+    .game-stats{position:absolute;left:40px;top:40px;padding:14px 20px;border:2px solid #65e6ff;background:rgba(9,17,26,.82);color:#fff;font:700 34px/1.2 system-ui;letter-spacing:.08em;border-radius:10px}
     .run-pulse{animation:pulse .65s ease-out}.run-shake{animation:shake .5s ease-in-out}.run-flash{animation:flash .65s ease-out}
     @keyframes pulse{0%{transform:scale(1)}35%{transform:scale(1.12);filter:brightness(1.8)}100%{transform:scale(1)}}
     @keyframes shake{0%,100%{transform:translateX(0)}20%{transform:translateX(-18px)}40%{transform:translateX(15px)}60%{transform:translateX(-10px)}80%{transform:translateX(6px)}}
@@ -126,14 +127,25 @@
 ${panels}
 ${texts}
 ${shapes}
+    <div id="gameStats" class="game-stats">WIN <span id="winCount">0</span> / LOSS <span id="lossCount">0</span></div>
   </div>
   <script>
     (() => {
       const config = ${JSON.stringify(normalized.gameLink).replace(/</g, '\\u003c')};
-      const fire = () => document.querySelectorAll('.overlay-panel').forEach((panel) => {
-        const name = 'run-' + config.animation; panel.classList.remove(name); void panel.offsetWidth;
+      const counters = JSON.parse(localStorage.getItem('obs-game-counters') || '{"wins":0,"losses":0}');
+      const renderCounters = () => { document.getElementById('winCount').textContent = counters.wins; document.getElementById('lossCount').textContent = counters.losses; };
+      const fire = (animation = config.animation) => document.querySelectorAll('.overlay-panel').forEach((panel) => {
+        const name = 'run-' + animation; panel.classList.remove('run-pulse','run-shake','run-flash'); void panel.offsetWidth;
         panel.classList.add(name); panel.addEventListener('animationend', () => panel.classList.remove(name), { once: true });
       });
+      const receive = (event) => {
+        if (!event || !event.type) return;
+        if (event.type === 'game.victory') { counters.wins += 1; localStorage.setItem('obs-game-counters', JSON.stringify(counters)); renderCounters(); fire('pulse'); }
+        else if (event.type === 'game.defeat') { counters.losses += 1; localStorage.setItem('obs-game-counters', JSON.stringify(counters)); renderCounters(); fire('shake'); }
+        else if (event.type === 'game.ult') fire('flash');
+        else if (event.type === 'overlay.trigger') fire();
+        else if (event.type === 'counters.reset') { counters.wins = 0; counters.losses = 0; localStorage.setItem('obs-game-counters', JSON.stringify(counters)); renderCounters(); }
+      };
       const matchesKey = (event) => {
         if (!config.enabled || event.repeat) return false;
         const byCode = config.code && event.code && event.code === config.code;
@@ -146,15 +158,14 @@ ${shapes}
       const connectBridge = () => {
         try {
           bridge = new WebSocket('ws://127.0.0.1:16888');
-          bridge.addEventListener('message', (message) => {
-            try { const event = JSON.parse(message.data); if (event.type === 'overlay.trigger') fire(); } catch (error) { /* ignore malformed bridge messages */ }
-          });
+          bridge.addEventListener('message', (message) => { try { receive(JSON.parse(message.data)); } catch (error) { /* ignore malformed bridge messages */ } });
           bridge.addEventListener('close', () => setTimeout(connectBridge, 2000));
           bridge.addEventListener('error', () => bridge.close());
         } catch (error) { setTimeout(connectBridge, 2000); }
       };
       connectBridge();
-      window.OBSOverlay = { emit: (event) => { if (event && event.type === 'overlay.trigger') fire(); } };
+      renderCounters();
+      window.OBSOverlay = { emit: receive };
     })();
   <\/script>
 </body>

@@ -36,6 +36,13 @@ public sealed class GameLinkBridgeForm : Form
     private bool captureNext;
     private int triggerKey;
     private bool triggerKeyDown;
+    private int scanTick;
+    private int victoryFrames;
+    private int defeatFrames;
+    private bool ultReady;
+    private DateTime lastVictory = DateTime.MinValue;
+    private DateTime lastDefeat = DateTime.MinValue;
+    private DateTime lastUlt = DateTime.MinValue;
 
     public GameLinkBridgeForm()
     {
@@ -80,6 +87,7 @@ public sealed class GameLinkBridgeForm : Form
         } catch { }
         clients.RemoveAll(c => !IsConnected(c));
         statusLabel.Text = "Connected overlays: " + clients.Count;
+        if (++scanTick % 2 == 0) DetectGameScreen();
     }
 
     private static bool PerformHandshake(TcpClient client)
@@ -116,9 +124,9 @@ public sealed class GameLinkBridgeForm : Form
         catch { return false; }
     }
 
-    private void BroadcastTrigger()
+    private void Broadcast(string type)
     {
-        byte[] payload = Encoding.UTF8.GetBytes("{\"type\":\"overlay.trigger\",\"source\":\"keyboard\"}");
+        byte[] payload = Encoding.UTF8.GetBytes("{\"type\":\"" + type + "\",\"source\":\"screen-bridge\"}");
         var frame = new byte[payload.Length + 2];
         frame[0] = 0x81;
         frame[1] = (byte)payload.Length;
@@ -127,7 +135,46 @@ public sealed class GameLinkBridgeForm : Form
             try { clients[i].GetStream().Write(frame, 0, frame.Length); }
             catch { clients[i].Close(); clients.RemoveAt(i); }
         }
-        statusLabel.Text = "Triggered / Connected: " + clients.Count;
+        statusLabel.Text = type + " / Connected: " + clients.Count;
+    }
+
+    private void DetectGameScreen()
+    {
+        try {
+            Rectangle screen = Screen.PrimaryScreen.Bounds;
+            using (var image = new Bitmap(screen.Width, screen.Height, System.Drawing.Imaging.PixelFormat.Format24bppRgb))
+            using (Graphics graphics = Graphics.FromImage(image)) {
+                graphics.CopyFromScreen(screen.Left, screen.Top, 0, 0, screen.Size, CopyPixelOperation.SourceCopy);
+                Rectangle resultArea = ScaleArea(screen, .24, .25, .76, .55);
+                int yellow = CountPixels(image, resultArea, delegate(Color c) { return c.R > 180 && c.G > 115 && c.B < 105 && c.R > c.B * 1.8; }, 4);
+                int red = CountPixels(image, resultArea, delegate(Color c) { return c.R > 175 && c.G < 105 && c.B < 115 && c.R > c.G * 1.8; }, 4);
+                victoryFrames = yellow > 180 ? victoryFrames + 1 : 0;
+                defeatFrames = red > 180 ? defeatFrames + 1 : 0;
+                DateTime now = DateTime.UtcNow;
+                if (victoryFrames >= 3 && (now - lastVictory).TotalSeconds > 15) { lastVictory = now; victoryFrames = 0; Broadcast("game.victory"); }
+                if (defeatFrames >= 3 && (now - lastDefeat).TotalSeconds > 15) { lastDefeat = now; defeatFrames = 0; Broadcast("game.defeat"); }
+
+                Rectangle ultArea = ScaleArea(screen, .455, .78, .545, .97);
+                int ultGold = CountPixels(image, ultArea, delegate(Color c) { return c.R > 155 && c.G > 90 && c.B < 85 && c.R > c.B * 1.7; }, 2);
+                if (ultGold > 85) ultReady = true;
+                if (ultReady && ultGold < 24 && (now - lastUlt).TotalSeconds > 4) { ultReady = false; lastUlt = now; Broadcast("game.ult"); }
+            }
+        } catch { }
+    }
+
+    private static Rectangle ScaleArea(Rectangle screen, double left, double top, double right, double bottom)
+    {
+        return new Rectangle((int)(screen.Width * left), (int)(screen.Height * top), Math.Max(1, (int)(screen.Width * (right - left))), Math.Max(1, (int)(screen.Height * (bottom - top))));
+    }
+
+    private delegate bool PixelMatch(Color color);
+    private static int CountPixels(Bitmap image, Rectangle area, PixelMatch match, int step)
+    {
+        int count = 0;
+        for (int y = area.Top; y < area.Bottom; y += step)
+            for (int x = area.Left; x < area.Right; x += step)
+                if (match(image.GetPixel(x, y))) count++;
+        return count;
     }
 
     private IntPtr KeyboardHook(int nCode, IntPtr wParam, IntPtr lParam)
@@ -140,7 +187,7 @@ public sealed class GameLinkBridgeForm : Form
                     captureNext = false; triggerKey = vk; triggerKeyDown = true;
                     BeginInvoke((MethodInvoker)delegate { keyLabel.Text = "Trigger key: " + ((Keys)vk); captureButton.Text = "Set trigger key"; });
                 } else if (triggerKey != 0 && vk == triggerKey && !triggerKeyDown) {
-                    triggerKeyDown = true; BeginInvoke((MethodInvoker)BroadcastTrigger);
+                    triggerKeyDown = true; BeginInvoke((MethodInvoker)delegate { Broadcast("overlay.trigger"); });
                 }
             } else if ((message == WM_KEYUP || message == WM_SYSKEYUP) && vk == triggerKey) triggerKeyDown = false;
         }

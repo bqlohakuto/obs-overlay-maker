@@ -98,6 +98,8 @@ test('OBS用HTMLへゲーム連動設定とイベント入口を含める', () =
   const html = buildObsHtml({ panels: [], gameLink: { enabled: true, code: 'Space', key: ' ', animation: 'flash' } });
   assert.match(html, /"code":"Space"/); assert.match(html, /run-flash/); assert.match(html, /overlay\.trigger/);
   assert.match(html, /ws:\/\/127\.0\.0\.1:16888/);
+  assert.match(html, /game\.victory|game\.defeat|game\.ult/);
+  assert.match(html, /winCount|lossCount|obs-game-counters/);
 });
 test('OBS用HTMLは属性値をエスケープする', () => {
   const html = buildObsHtml({ panels: [{ id: '\"><script>', x: 0, y: 0 }] });
